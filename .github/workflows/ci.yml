@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck, lint, test, secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test -- --ci
+
+      - name: Expo doctor
+        run: npx expo-doctor
+
+      # The bundle is built with no key in the environment, then scanned. A key
+      # reaching the client bundle fails the build. See scripts/.
+      - name: Build web bundle
+        run: npx expo export --platform web --output-dir dist
+        env:
+          EXPO_PUBLIC_API_URL: https://example.invalid
+
+      - name: Scan bundle for secrets
+        run: npm run scan:secrets
+
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Audit (high and critical only)
+        run: npm audit --audit-level=high
