@@ -34,10 +34,20 @@ not decide.
 | `app/` | Routes only. Thin. No business logic. |
 | `src/game/` | State machine, scoring, prompt loading. Pure, tested. |
 | `src/judge/` | Verdict schema and the device-side client. |
+| `src/capture/` | Camera permission stage, longest-edge fit, downscale pipeline. |
 | `src/storage/` | Persisted profile, Zod-validated. |
 | `src/ui/` | Presentational components. |
-| `src/design/` | Tokens and font assets. |
+| `src/design/` | Tokens, font assets, contrast, scheme resolution. |
+| `src/util/` | Small cross-cutting helpers. `withTimeout` lives here. |
 | `assets/prompts.json` | The curated prompt pack. |
+
+`src/capture/` and `src/util/` are additions to the structure in PLAN.md. Camera
+and image work is neither game logic nor judging, and `withTimeout` is needed by
+both capture and the judge client.
+
+All permission UI lives in `app/onboarding.tsx` — one place where a denial can
+become a dead end, and it does not. The decision itself is pure and tested in
+`src/capture/permission.ts`; the screen only renders the stage it returns.
 
 ## Commands
 
