@@ -98,6 +98,13 @@ hex literal appears anywhere else in the codebase — enforced by a
 `no-restricted-syntax` ESLint rule that fails CI. If you need a value that is not
 in tokens, that is a design decision: raise it, do not invent it inline.
 
+Colour is scheme-dependent. **Never import `palette` directly in a component** —
+call `useColours()` and build styles through a `makeStyles(colour)` factory
+memoised on it. `palette.light` and `palette.dark` name identical tokens, so no
+component ever branches on scheme. Adding a token means adding it to both, and
+the contrast suite will fail the build if the new value does not clear WCAG AA
+against its own paper.
+
 Deviating from `DESIGN.md` mid-build is allowed when it is wrong, but write down
 what you changed and why. Never drift silently.
 

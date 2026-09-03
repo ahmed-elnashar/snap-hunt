@@ -26,28 +26,54 @@ wait. An office already has answers to those.
 
 ### Palette
 
-Five values. Named for what they are on the desk, not for rank.
+Five roles, two schemes. Named for what they are on the desk, not for rank.
+
+**Light — the top copy.** The form as it is handed to the applicant, in daylight.
 
 | Token | Hex | Role | Contrast on `buff` |
 |---|---|---|---|
-| `buff` | `#E8DCC4` | The paper. Everything sits on it; the app has no other background. | — |
-| `ink` | `#1C1A17` | Warm near-black. All primary type, all pen rules. | 15.1 : 1 |
+| `buff` | `#E8DCC4` | The paper. Everything sits on it; there is no other background. | — |
+| `ink` | `#1C1A17` | Warm near-black. All primary type, all pen rules. | 12.79 : 1 |
 | `padViolet` | `#4B2E83` | The stamp pad. **Both** verdicts, accept and reject. | 7.66 : 1 |
-| `padTeal` | `#1F5C58` | The second pad: printed rules, the timer bar, the shutter ring. | 5.67 : 1 |
+| `padTeal` | `#1F5C58` | The second pad: printed rules, the timer bar, the shutter ring. | 5.66 : 1 |
 | `bleed` | `#6B5D46` | Ink soaked into the fibre. Secondary and supporting text only. | 4.72 : 1 |
 
-Ratios are computed by `src/design/tokens.test.ts`, which fails the build if any
-ink drops below WCAG AA against the paper. The numbers above are outputs of that
-test, not estimates.
+**Dark — the file copy.** An office does not make one of anything. Every
+submission is taken in duplicate: the top copy goes to the applicant, the file
+copy stays in the drawer, on darker stock, and never sees daylight. Dark mode is
+that second sheet. Same document, same layout, same stamp — a different physical
+object, which is why the values move the way they do.
+
+| Token | Hex | Role | Contrast on `buff` |
+|---|---|---|---|
+| `buff` | `#2B2722` | File-copy stock. Warm brown-grey; still legibly paper, never void. | — |
+| `ink` | `#EDE4D2` | The impression, read as unlifted stock. Off-white, never pure white. | 11.74 : 1 |
+| `padViolet` | `#A98BDB` | The same pad, sitting on the sheet rather than soaking into it. | 5.23 : 1 |
+| `padTeal` | `#5FA69C` | Second pad on file stock. | 5.24 : 1 |
+| `bleed` | `#A2957E` | Secondary text on file stock. | 5.04 : 1 |
+
+Both schemes name **exactly the same five tokens**, so no component branches on
+scheme — a call site asks for `colour.padViolet` and gets whichever sheet it is
+printed on. `useColours()` resolves it.
+
+Ratios are computed by `src/design/tokens.test.ts`, which runs the same suite
+over both schemes and fails the build if any ink drops below WCAG AA against its
+own paper. The numbers above are that test's output, not estimates.
 
 **Rationale.** Buff, aniline violet and a dull teal are the actual colours of
 municipal stationery and rubber-stamp pads. They come from the subject. Nothing
-in the palette is red or green, which is what lets a rejection be funny rather
-than punitive — see [Rejection](#rejection).
+in either palette is red or green, which is what lets a rejection be funny rather
+than punitive.
 
-**Dark mode: no.** Paper does not have a dark mode. `userInterfaceStyle` is
-pinned to `light` in `app.config.ts`. This is a decision with a reason, not an
-omission — supporting both because apps usually do would be the omission.
+**Why the dark scheme is not an inversion.** Inverting to a near-black ground
+with one bright accent is the first tell on the brief's list, and it would also
+break the premise — the app stops being a document and becomes a dark UI. The
+file copy gives the shift a reason from the subject instead: the ground is a warm
+brown-grey at roughly 20% lightness that still reads as a sheet, the ink lightens
+because pigment now sits *on* dark stock rather than soaking into light stock,
+and there are still two inks and a secondary rather than a single accent. The
+test asserts the paper is clear of both pure white and pure black, so neither
+scheme can drift into being a surface.
 
 ### Type
 
@@ -288,7 +314,7 @@ decoration announcing it.
 
 | Tell | Status |
 |---|---|
-| Near-black + acid accent | Not present. The ground is light. |
+| Near-black + acid accent | Avoided in both schemes. The dark ground is a warm brown-grey at ~20% lightness that reads as stock, not a surface, and carries two inks plus a secondary rather than one accent. A test asserts the paper is clear of pure black. |
 | Cream + serif + terracotta | Adjacent; no serif, no terracotta. Argued above. |
 | Identical rounded cards with soft grey shadows | Not present. No cards, no shadows, no radius. |
 | Gradient washes | Not present. Every fill is flat. |
@@ -302,4 +328,33 @@ decoration announcing it.
 
 ## Amendments
 
-Changes made after this document was signed off. Nothing here yet.
+Changes made after the Pass 2 critique, recorded rather than drifted into.
+
+### A1 — the app has a dark mode
+
+**What changed.** Pass 1 and Pass 2 both concluded the app should have no dark
+mode, on the grounds that paper does not have one. Overruled by the product
+owner: dark mode is required.
+
+**How it was resolved.** The lazy discharge of that instruction is a near-black
+ground with the violet turned up, which is both the first generated-design tell
+on the brief's list and the end of the premise — it stops being a document.
+
+Instead the requirement was answered from inside the fiction. An office takes
+every submission in duplicate; the second sheet is the file copy, on darker
+stock, kept in a drawer. Dark mode is that sheet. This keeps every property the
+design depends on: the ground is still paper rather than a surface, there are
+still two inks and a secondary rather than one accent, the accept and reject
+stamps still share an ink and differ only in form, and the type scale, spacing
+and motion are untouched.
+
+**What it cost.** The original reasoning — "paper has no dark mode" — was true
+of a single sheet and wrong about an office. Being made to build the thing found
+a better answer than the one that was argued for, which is worth recording
+plainly.
+
+**Mechanics.** `palette.light` and `palette.dark` name identical token sets, so
+no component branches on scheme; `useColours()` resolves one.
+`userInterfaceStyle` is `automatic`. The contrast suite runs over both schemes,
+and every ink in both clears WCAG AA against its own paper — the tightest is
+`bleed` on the top copy at 4.72 : 1.

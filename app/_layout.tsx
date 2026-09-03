@@ -1,19 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
+
 import { fontAssets } from '@/design/fonts';
-import { colour, space, type } from '@/design/tokens';
+import { space, type, type Palette } from '@/design/tokens';
+import { useColours } from '@/design/useColours';
 
 void SplashScreen.preventAutoHideAsync();
 
-// The root is buff so there is never a white frame between splash and paper.
-void SystemUI.setBackgroundColorAsync(colour.buff);
-
 export default function RootLayout() {
+  const colour = useColours();
+  const styles = useMemo(() => makeStyles(colour), [colour]);
   const [fontsLoaded, fontError] = useFonts(fontAssets);
 
   const ready = fontsLoaded || fontError !== null;
@@ -22,12 +23,18 @@ export default function RootLayout() {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
 
+  // Keeps the window behind the navigator on the current stock, so switching
+  // schemes never flashes a colour that is in neither palette.
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(colour.buff);
+  }, [colour.buff]);
+
   if (!ready) return null;
 
   if (fontError !== null) {
     return (
       <View style={styles.fallback} accessibilityRole="alert">
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <Text style={styles.fallbackRuling}>
           The office typewriter has failed to arrive.
         </Text>
@@ -40,7 +47,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -52,14 +59,15 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  fallback: {
-    flex: 1,
-    backgroundColor: colour.buff,
-    justifyContent: 'center',
-    paddingHorizontal: space.wide,
-    gap: space.base,
-  },
-  fallbackRuling: { ...type.ruling, color: colour.ink },
-  fallbackBody: { ...type.body, color: colour.bleed },
-});
+const makeStyles = (colour: Palette) =>
+  StyleSheet.create({
+    fallback: {
+      flex: 1,
+      backgroundColor: colour.buff,
+      justifyContent: 'center',
+      paddingHorizontal: space.wide,
+      gap: space.base,
+    },
+    fallbackRuling: { ...type.ruling, color: colour.ink },
+    fallbackBody: { ...type.body, color: colour.bleed },
+  });

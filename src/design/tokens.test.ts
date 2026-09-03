@@ -1,47 +1,20 @@
+import { AA_NORMAL, contrast } from './contrast';
 import { fontAssets } from './fonts';
-import { colour, family, type } from './tokens';
+import { SCHEMES, family, palette, type } from './tokens';
 
 /**
  * The brief requires every text colour to meet WCAG AA against its background,
  * and specifically calls out checking the lightest secondary text. Asserting it
- * here means a future palette edit fails the build rather than shipping.
- *
- * WCAG 2.1 relative luminance, per w3.org/TR/WCAG21/#dfn-relative-luminance.
+ * here means a palette edit that breaks contrast fails the build rather than
+ * shipping — in either scheme, which is the point of running the same suite
+ * over both.
  */
-function channel(srgb8: number): number {
-  const c = srgb8 / 255;
-  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-}
+describe.each(SCHEMES)('%s scheme', (scheme) => {
+  const { buff, ...inks } = palette[scheme];
+  const inkEntries = Object.entries(inks);
 
-function luminance(hex: string): number {
-  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
-  if (m === null) throw new Error(`Not a six-digit hex colour: ${hex}`);
-  const n = parseInt(m[1] as string, 16);
-  const r = channel((n >> 16) & 0xff);
-  const g = channel((n >> 8) & 0xff);
-  const b = channel(n & 0xff);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-export function contrast(a: string, b: string): number {
-  const la = luminance(a);
-  const lb = luminance(b);
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-const AA_NORMAL = 4.5;
-
-describe('palette contrast against buff', () => {
-  const inks = [
-    ['ink', colour.ink],
-    ['padViolet', colour.padViolet],
-    ['padTeal', colour.padTeal],
-    ['bleed', colour.bleed],
-  ] as const;
-
-  it.each(inks)('%s meets WCAG AA for normal text', (name, value) => {
-    const ratio = contrast(value, colour.buff);
+  it.each(inkEntries)('%s meets WCAG AA against its own paper', (name, value) => {
+    const ratio = contrast(value, buff);
     expect({ name, ratio: Number(ratio.toFixed(2)) }).toEqual({
       name,
       ratio: expect.any(Number),
@@ -49,16 +22,54 @@ describe('palette contrast against buff', () => {
     expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 
-  it('bleed is the lightest ink and still clears AA', () => {
-    const ratios = inks.map(([, value]) => contrast(value, colour.buff));
-    const bleedRatio = contrast(colour.bleed, colour.buff);
+  it('uses bleed as the lightest ink, and it still clears AA', () => {
+    const ratios = inkEntries.map(([, value]) => contrast(value, buff));
+    const bleedRatio = contrast(palette[scheme].bleed, buff);
     expect(bleedRatio).toBe(Math.min(...ratios));
     expect(bleedRatio).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 
-  it('sanity-checks the contrast function against known values', () => {
+  it('keeps the paper clear of both extremes, so it still reads as paper', () => {
+    // A ground at pure white or pure black is a UI surface, not a sheet.
+    expect(contrast(buff, '#FFFFFF')).toBeGreaterThan(1.05);
+    expect(contrast(buff, '#000000')).toBeGreaterThan(1.05);
+  });
+});
+
+describe('the two schemes', () => {
+  it('name exactly the same tokens, so no call site can branch on scheme', () => {
+    expect(Object.keys(palette.dark).sort()).toEqual(Object.keys(palette.light).sort());
+  });
+
+  it('shares no value between them', () => {
+    const light = new Set<string>(Object.values(palette.light));
+    for (const value of Object.values(palette.dark)) {
+      expect({ value, reusedFromLight: light.has(value) }).toEqual({
+        value,
+        reusedFromLight: false,
+      });
+    }
+  });
+
+  it('inverts the paper relative to the primary ink in both directions', () => {
+    // Light: dark ink on light paper. Dark: light ink on dark paper.
+    expect(contrast(palette.light.ink, '#FFFFFF')).toBeGreaterThan(
+      contrast(palette.light.buff, '#FFFFFF'),
+    );
+    expect(contrast(palette.dark.ink, '#000000')).toBeGreaterThan(
+      contrast(palette.dark.buff, '#000000'),
+    );
+  });
+});
+
+describe('contrast helper', () => {
+  it('matches known values', () => {
     expect(contrast('#000000', '#FFFFFF')).toBeCloseTo(21, 5);
     expect(contrast('#FFFFFF', '#FFFFFF')).toBeCloseTo(1, 5);
+  });
+
+  it('rejects a value that is not a six-digit hex colour', () => {
+    expect(() => contrast('#FFF', '#FFFFFF')).toThrow(/six-digit hex/);
   });
 });
 
@@ -94,7 +105,7 @@ describe('fonts', () => {
    * review. This is the test that catches it.
    */
   it('loads every family named in the type scale', () => {
-    const loaded = new Set(Object.keys(fontAssets));
+    const loaded = new Set<string>(Object.keys(fontAssets));
     for (const [role, style] of Object.entries(type)) {
       expect({ role, loaded: loaded.has(style.fontFamily) }).toEqual({
         role,
@@ -111,7 +122,7 @@ describe('fonts', () => {
   });
 
   it('keeps the family token map in step with the loaded faces', () => {
-    const loaded = new Set(Object.keys(fontAssets));
+    const loaded = new Set<string>(Object.keys(fontAssets));
     for (const [alias, name] of Object.entries(family)) {
       expect({ alias, loaded: loaded.has(name) }).toEqual({ alias, loaded: true });
     }

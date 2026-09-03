@@ -4,8 +4,8 @@ import type { ExpoConfig } from 'expo/config';
  * No secret is permitted in this file. The Anthropic API key lives only in the
  * server environment read by app/api/judge+api.ts. See README "Security".
  *
- * `userInterfaceStyle: 'light'` is a design decision, not an oversight: the app
- * has no dark mode because paper does not have one. See DESIGN.md.
+ * The app follows the system scheme: light is the applicant's top copy, dark is
+ * the office's file copy of the same form. See DESIGN.md.
  */
 const config: ExpoConfig = {
   name: 'Snap Hunt',
@@ -13,7 +13,7 @@ const config: ExpoConfig = {
   version: '1.0.0',
   orientation: 'portrait',
   scheme: 'snaphunt',
-  userInterfaceStyle: 'light',
+  userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier: 'com.snaphunt.game',
     supportsTablet: false,

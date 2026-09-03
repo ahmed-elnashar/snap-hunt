@@ -445,8 +445,14 @@ The iOS Simulator has no camera, so the single required Maestro flow is otherwis
 impossible to run in CI. Everything downstream of the shutter runs for real.
 Camera behaviour itself moves to the manual matrix on a physical device.
 
-**D6 — the app has no dark mode.** Paper does not have one. A single committed
-look, chosen rather than defaulted.
+**D6 — the app has a dark mode, and it is the file copy.** Design passes 1 and 2
+argued for no dark mode on the grounds that paper does not have one. Overruled by
+the product owner. Rather than discharge that with a near-black ground and a
+brighter accent — the brief's first listed tell, and the end of the premise — the
+requirement is answered from inside the fiction: an office takes every submission
+in duplicate, and the file copy is on darker stock. Both schemes name identical
+tokens, so nothing branches on scheme, and the contrast suite runs over both. See
+`DESIGN.md` amendment A1.
 
 **D7 — fonts are imported per weight.** Importing from the package root pulls all
 26 Archivo weights into the bundle. Deep imports cut the exported bundle from

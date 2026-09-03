@@ -69,13 +69,21 @@ can look at a photograph and be funny about it. The version is pinned rather tha
 aliased so a model update cannot silently change the judge's character.
 
 **Paper and ink, not a dark app with an accent colour.** The whole interface is
-an adjudicator's desk: buff paper, two stamp-pad inks, and one moment of
-violence when the stamp lands. Full rationale in [DESIGN.md](DESIGN.md).
+an adjudicator's desk: buff paper, two stamp-pad inks, and one moment of violence
+when the stamp lands. Accept and reject are stamped in the *same* ink and differ
+by the shape of the stamp, so nothing in the app is distinguished by colour
+alone. Full rationale in [DESIGN.md](DESIGN.md).
+
+**Dark mode is the file copy.** An office takes every submission in duplicate:
+the top copy goes to the applicant, the file copy stays in the drawer on darker
+stock. That is the dark scheme — not an inversion, and deliberately not a
+near-black ground with the accent turned up. Both schemes name identical tokens,
+so no component branches on scheme.
 
 **No hex literal exists outside `src/design/tokens.ts`.** An ESLint rule fails the
-build on one, and a unit test asserts that every ink in the palette clears WCAG
-AA against the paper it sits on — so a palette edit that breaks contrast fails
-CI rather than shipping.
+build on one, and a unit test asserts that every ink in **both** schemes clears
+WCAG AA against the paper it sits on — so a palette edit that breaks contrast
+fails CI rather than shipping.
 
 ## Security
 

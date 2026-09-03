@@ -10,26 +10,50 @@
  */
 
 /**
- * Five colours. Each is named for what it means on the adjudicator's desk, not
- * for its position in a hierarchy.
+ * Five colours, in two schemes.
  *
- * Contrast ratios are measured against `buff`, which is the ground for all text
- * in the app. All four ink values clear WCAG AA (4.5:1) for normal-size text.
+ * Light is the TOP COPY: the form as it is handed to the applicant, in daylight.
+ * Dark is the FILE COPY: the office's own duplicate, on the darker stock that
+ * lives in the drawer and never sees daylight. Same document, same layout, same
+ * stamp — a different physical sheet, which is why the values move the way they
+ * do. It is not an inversion; see DESIGN.md.
+ *
+ * Every ink in BOTH schemes is asserted to clear WCAG AA (4.5:1) against its own
+ * paper by src/design/tokens.test.ts. Ratios in the comments are that test's
+ * output, not estimates.
  */
-export const colour = {
-  /** The paper. Everything sits on this. The app has no other background. */
-  buff: '#E8DCC4',
-  /** Warm near-black. All primary type and every rule drawn in pen. 15.1:1 */
-  ink: '#1C1A17',
-  /** The stamp pad. Used by BOTH verdicts — see DESIGN.md on why. 7.66:1 */
-  padViolet: '#4B2E83',
-  /** The second pad: printed rules, the timer bar, the shutter ring. 5.67:1 */
-  padTeal: '#1F5C58',
-  /** Ink soaked into the fibre. Secondary and supporting text only. 4.72:1 */
-  bleed: '#6B5D46',
+export const palette = {
+  light: {
+    /** The paper. Everything sits on it; there is no other background. */
+    buff: '#E8DCC4',
+    /** Warm near-black. Primary type and pen rules. 12.79:1 */
+    ink: '#1C1A17',
+    /** The stamp pad. BOTH verdicts — see DESIGN.md on why. 7.66:1 */
+    padViolet: '#4B2E83',
+    /** Second pad: printed rules, timer bar, shutter ring. 5.66:1 */
+    padTeal: '#1F5C58',
+    /** Ink soaked into the fibre. Secondary text only. 4.72:1 */
+    bleed: '#6B5D46',
+  },
+  dark: {
+    /** File-copy stock. Warm brown-grey, still legibly paper, never void. */
+    buff: '#2B2722',
+    /** The impression, read as unlifted stock. Off-white, never pure. 11.74:1 */
+    ink: '#EDE4D2',
+    /** The same pad, sitting on the sheet rather than soaking in. 5.23:1 */
+    padViolet: '#A98BDB',
+    /** Second pad on file stock. 5.24:1 */
+    padTeal: '#5FA69C',
+    /** Secondary text on file stock. 5.04:1 */
+    bleed: '#A2957E',
+  },
 } as const;
 
-export type ColourName = keyof typeof colour;
+export type Scheme = keyof typeof palette;
+export type Palette = (typeof palette)[Scheme];
+export type ColourName = keyof Palette;
+
+export const SCHEMES: readonly Scheme[] = ['light', 'dark'];
 
 /**
  * Font families, resolved from the two OFL-1.1 licensed families loaded in
@@ -52,7 +76,7 @@ export const family = {
 /**
  * Type scale, by role rather than by size. Sizes are unscaled points; React
  * Native applies the user's Dynamic Type setting on top, so no layout may
- * assume a fixed text height.
+ * assume a fixed text height. The scale does not change between schemes.
  */
 export const type = {
   /** The hunt prompt on the band above the preview. Read at a glance. */
