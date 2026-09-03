@@ -358,3 +358,27 @@ no component branches on scheme; `useColours()` resolves one.
 `userInterfaceStyle` is `automatic`. The contrast suite runs over both schemes,
 and every ink in both clears WCAG AA against its own paper — the tightest is
 `bleed` on the top copy at 4.72 : 1.
+
+### A2 — the stamp reports the outcome, not the raw verdict
+
+**What was underspecified.** Pass 1 defined two stamps, `ADMITTED` and
+`NOT ADMITTED`, and the judge returns three rulings: accept, reject, unclear.
+Building the verdict screen exposed the gap: there was no stamp for `unclear`.
+
+**Resolved.** The stamp reports **whether the point was awarded**, which is the
+thing the player actually cares about, and the ruling text underneath carries
+what the judge thought. So:
+
+- point awarded — accept, unclear, or a reject below the confidence floor →
+  the **ring** die, `ADMITTED`
+- point withheld — a confident reject → the **bar** die, `NOT ADMITTED`
+
+**Why this is better than adding a third stamp.** It keeps the two dies the
+design committed to, it makes the two shapes mean something legible rather than
+being two arbitrary marks, and it puts the generous tie-break on screen: a
+reject the judge is unsure of gets an `ADMITTED` ring above a ruling that
+grumbles about the object. That contradiction is the joke, and it was invisible
+until the stamp was made to report the outcome.
+
+Both dies are still inked in the same violet. `Ruling` computes the shape from
+`verdictAwardsPoint`, so the screen cannot disagree with the scoring rule.
