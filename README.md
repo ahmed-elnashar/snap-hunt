@@ -197,10 +197,34 @@ fails CI rather than shipping.
 | ![The office](docs/screens/05-office.png) | ![The file copy](docs/screens/06-file-copy-dark.png) |
 | **The office.** The record, what the judge is, and what it cannot do — stated to the player, not just in this file. | **The file copy.** Dark mode is the office's duplicate on darker stock, not an inversion. |
 
-> Screenshots are from Expo Go on the iOS Simulator, which is why a blue
-> dev-tools button appears in the corner of each. It is Expo Go's, not the
-> app's. See [known limitations](#known-limitations) for why there is no native
-> build to shoot instead.
+## Building natively
+
+```bash
+npx expo run:ios          # builds and installs on the simulator
+```
+
+**Expo SDK 57 does not compile on Xcode 26.3 without a patch.**
+`expo-modules-jsi@57.0.7` — the newest release for this SDK — fails with:
+
+```
+'RuntimeScheduler' cannot be annotated with either SWIFT_RETURNS_RETAINED or
+SWIFT_RETURNS_UNRETAINED because it is not returning a SWIFT_SHARED_REFERENCE type
+```
+
+The class *is* a shared reference, but the `SWIFT_SHARED_REFERENCE` attribute
+sits on its **closing brace**, and Clang 17+ checks `SWIFT_RETURNS_RETAINED` on
+each constructor as that constructor is parsed — before the attribute has been
+seen. Moving the attribute to the class head does not help either; Clang rejects
+constructor-level `RETURNS_RETAINED` on this type regardless.
+
+`patches/expo-modules-jsi+57.0.7.patch` removes both annotations. That changes
+ownership only: Swift now treats a constructed scheduler as +0 and takes its own
+retain, so the object is **leaked rather than over-released**. There is one
+scheduler per runtime, so the cost is a single small allocation for the lifetime
+of the process — the safe direction to be wrong in, and better than not building.
+
+It is applied automatically by `patch-package` on `npm install`, and should be
+deleted as soon as a fixed `expo-modules-jsi` ships.
 
 ## Accessibility
 
@@ -249,16 +273,9 @@ Not a polish item, and not asserted without tests.
   the deliberate response to that, not a fix for it.
 - **No offline play.** Judging needs a network round trip.
 - **Not on the App Store.** Distribution is a development build and TestFlight.
-- **The native build does not compile on Xcode 26.3.** `expo-modules-jsi@57.0.7`
-  — the newest release for Expo SDK 57 — fails with
-  `'RuntimeScheduler' cannot be annotated with either SWIFT_RETURNS_RETAINED or
-  SWIFT_RETURNS_UNRETAINED` under Swift 6.2.4. It is an upstream C++/Swift
-  interop incompatibility, not something in this repository, and the only
-  published fix is an SDK 58 canary. Consequences, stated rather than hidden:
-  the app currently runs through Expo Go, the screenshots carry Expo Go's
-  dev-tools button, and the Phase 5 acceptance criterion "development build
-  installs on a physical iPhone via Xcode" is **not met on this machine**.
-  Everything else — the game, the judge, the tests, CI — is unaffected.
+- **One patched dependency.** See [Building natively](#building-natively). The
+  patch trades an ownership annotation for a single leaked object per process;
+  it should be deleted the moment upstream fixes it.
 
 ## Licence
 

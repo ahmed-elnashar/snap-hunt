@@ -24,11 +24,12 @@ judge's voice rules applied mechanically to every user-facing string.
 ## The one Maestro flow
 
 ```bash
-eas build --profile development-simulator --platform ios --local
-xcrun simctl install booted SnapHunt.app
-EXPO_PUBLIC_E2E=1 npx expo start --dev-client
+EXPO_PUBLIC_E2E=1 npx expo run:ios     # native build onto the simulator
 maestro test .maestro/round.yaml
 ```
+
+The native build needs `patches/expo-modules-jsi+57.0.7.patch`, applied
+automatically on `npm install`. See the README's "Building natively".
 
 `EXPO_PUBLIC_E2E=1` stands in for the camera the simulator does not have and for
 the judge. Everything between them is real.

@@ -131,7 +131,17 @@ export default function Round() {
                 ]}
               />
               <PaperButton label="Next submission" onPress={round.startRound} />
-              <Link href="/about" style={styles.aside}>
+              {/*
+                Padded to a 44pt touch target. As bare text this was a 13pt
+                tap area — under the iOS minimum, and genuinely hard to hit.
+                Found by trying to reach it while capturing screenshots.
+              */}
+              <Link
+                href="/about"
+                style={styles.aside}
+                accessibilityRole="link"
+                accessibilityLabel="The office: your record, and what the judge is"
+              >
                 <Text style={styles.asideText}>The office</Text>
               </Link>
             </>
@@ -205,6 +215,12 @@ const makeStyles = (colour: Palette) =>
       padding: space.roomy,
       gap: space.roomy,
     },
-    aside: { alignSelf: 'flex-start' },
+    aside: {
+      alignSelf: 'flex-start',
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingVertical: space.base,
+      paddingRight: space.wide,
+    },
     asideText: { ...type.label, color: colour.bleed },
   });

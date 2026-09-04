@@ -1,0 +1,46 @@
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+index 6115e87..88aa011 100644
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+@@ -5,6 +5,23 @@
+ #include <atomic>
+ #include <swift/bridging>
+ 
++// --- Local patch: native builds on Xcode 26.3 / Swift 6.2 --------------------
++// Clang 17+ rejects SWIFT_RETURNS_RETAINED on the constructors below with
++// "'RuntimeScheduler' cannot be annotated ... because it is not returning a
++// SWIFT_SHARED_REFERENCE type". The class IS a shared reference, but the
++// attribute sits on its closing brace and the check runs as each constructor is
++// parsed, before that is seen. Moving the attribute to the class head does not
++// help either — Clang rejects constructor-level RETURNS_RETAINED here regardless.
++//
++// Both annotations are therefore removed. The effect is on ownership only:
++// Swift now treats a constructed scheduler as +0 and takes its own retain, so
++// the object is leaked rather than over-released. There is one scheduler per
++// runtime, so this costs a single small allocation for the process lifetime —
++// the safe direction to be wrong in, and preferable to not building at all.
++//
++// Remove when expo-modules-jsi > 57.0.7 fixes this upstream.
++// -----------------------------------------------------------------------------
++
+ namespace expo {
+ 
+ /**
+@@ -50,7 +67,7 @@ public:
+    `scheduleTask` dispatches through `fn`, which the host implements against
+    the real react::RuntimeScheduler.
+    */
+-  SWIFT_RETURNS_RETAINED RuntimeScheduler(void *scheduler, ScheduleFn fn) noexcept
++  RuntimeScheduler(void *scheduler, ScheduleFn fn) noexcept
+       : nativeScheduler(scheduler), scheduleFn(fn) {}
+ 
+   /**
+@@ -58,7 +75,7 @@ public:
+    caller's thread — intended for standalone runtimes (e.g. tests) that have
+    no React scheduler.
+    */
+-  SWIFT_RETURNS_RETAINED RuntimeScheduler() {}
++  RuntimeScheduler() {}
+ 
+   RuntimeScheduler(const RuntimeScheduler &) = delete;
+ 
