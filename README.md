@@ -20,10 +20,22 @@ was one, and the ones I got wrong are written down too.
   <img src="docs/media/round.gif" alt="A round: prompt, shutter, the print developing, the stamp landing" width="320">
 </p>
 
-**[See the live type scale and palette](https://snap-hunt.expo.app/specimen)**
-The specimen sheet is served from the same deployment: both Martian Mono roles,
-the full palette, and every contrast ratio measured against the sheet it sits
-on. It needs no camera and costs nothing to open.
+## Try it
+
+**[Play a round](https://snap-hunt.expo.app)** — the deployment serves the app
+as well as the judge, so it runs in a browser with a camera. Grant access, wait
+for a prompt, photograph something that fits, and a real
+`claude-haiku-4-5-20251001` call rules on it. **A phone browser is much closer
+to the intent** than a desktop one: every screen is laid out for a device held
+one-handed.
+
+**[See the type scale and palette](https://snap-hunt.expo.app/specimen)** — the
+specimen sheet, with both Martian Mono roles and every contrast ratio measured
+against the sheet it sits on. No camera needed.
+
+iOS is the platform this is built and designed for; the browser is a side effect
+of hosting the API route, and it is not where the work is meant to be judged.
+The [screens below](#screens) are captured from the native app.
 
 ## At a glance
 
@@ -282,12 +294,13 @@ Not a polish item, and not asserted without tests.
   and the shutter-beats-the-clock race cannot be answered by a simulator. The
   Maestro flow is written but has never been executed.
 - **No offline play.** Judging needs a network round trip.
-- **iOS is the target; the web output exists to host the API route.**
-  `web.output: 'server'` is what makes `app/api/judge+api.ts` deployable, and
-  the app renders in a browser as a side effect — correctly, fonts and both
-  schemes included. It is not a supported platform, though: the browser must
-  grant camera access, nothing about the capture path is tested there, and none
-  of the device matrix applies to it.
+- **The browser build works but is not the supported platform.**
+  `web.output: 'server'` exists so `app/api/judge+api.ts` can be deployed; the
+  app running there is a side effect, and a round does play end to end given
+  camera permission. But nothing about the web capture path is tested, the
+  device matrix does not apply to it, and the haptics and the silent-switch
+  behaviour — both of which the verdict is built around — have no meaning in a
+  browser. Treat it as a demo, not as the product.
 - **Not on the App Store.** Distribution is a development build and TestFlight,
   and the TestFlight build waits on Apple Developer enrollment.
 - **One patched dependency**, and three versions pinned because of it. See
