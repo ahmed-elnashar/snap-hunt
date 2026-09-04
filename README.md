@@ -1,5 +1,7 @@
 # Snap Hunt
 
+![Snap Hunt: the prompt, the develop, the ruling](docs/media/hero.png)
+
 A camera scavenger hunt game for iOS. The app names a thing — *something round
 and blue* — and starts a twenty-second timer. You find one in the real world and
 photograph it. A vision model looks at the photo, decides whether it counts, and
@@ -7,6 +9,10 @@ stamps a ruling onto it.
 
 The game is one loop. The interest is in the time pressure and in the judge's
 personality, not in feature count.
+
+<p align="center">
+  <img src="docs/media/round.gif" alt="A round: prompt, shutter, the print developing, the stamp landing" width="320">
+</p>
 
 > **Status:** in build. The game is playable end to end — prompt, timer,
 > capture, ruling, score, streak — with the design pass applied. Release
@@ -53,6 +59,32 @@ components render, they do not decide.
 
 The device never talks to Anthropic. It posts a downscaled JPEG to an Expo Router
 API route, which holds the key in its server environment and proxies the call.
+
+```mermaid
+flowchart TB
+  subgraph phone["iPhone"]
+    direction TB
+    cam["expo-camera<br/>shutter"] --> prep["downscale<br/>1024px, JPEG 0.6<br/>base64 taken here"]
+    prep --> client["judge/client<br/>aborts at 6s"]
+    machine["round machine<br/>pure, no React"] --- client
+    client --> reveal["develop → stamp<br/>the one animation"]
+  end
+
+  client -- "POST base64 + prompt id<br/>x-snap-hunt-device" --> route
+
+  subgraph server["Expo Router API route"]
+    direction TB
+    route["/api/judge"] --> limit["rate limit<br/>60 / hour / device"]
+    limit --> call["Messages API<br/>claude-haiku-4-5-20251001<br/>structured output, 5s budget"]
+    call --> parse["Zod verdict<br/>+ one repair attempt<br/>then unclear"]
+  end
+
+  key["ANTHROPIC_API_KEY<br/>server environment only<br/>CI greps the bundle for it"] -.-> call
+  parse -- "verdict" --> client
+```
+
+The dashed line is the only place the key exists. Nothing on the phone has ever
+seen it, and CI builds the client bundle and greps it to keep that true.
 
 ### How a ruling is reached
 
@@ -154,6 +186,22 @@ build on one, and a unit test asserts that every ink in **both** schemes clears
 WCAG AA against the paper it sits on — so a palette edit that breaks contrast
 fails CI rather than shipping.
 
+## Screens
+
+| | |
+|---|---|
+| ![The round](docs/screens/01-round.png) | ![The judge is looking](docs/screens/02-developing.png) |
+| **The round.** The prompt sits on opaque paper laid across the preview, so type never competes with the live image. The teal rule under it is the clock, retracting. | **The develop.** The captured photograph emerges from the paper it is printed on while the judge looks at it. There is no spinner anywhere in this app. |
+| ![Admitted](docs/screens/04-admitted.png) | ![Not admitted](docs/screens/03-not-admitted.png) |
+| **Admitted.** A ring die. | **Not admitted.** A bar die, in *the same violet ink*. Accept and reject differ by the shape of the mark and the word cut into it, never by colour. |
+| ![The office](docs/screens/05-office.png) | ![The file copy](docs/screens/06-file-copy-dark.png) |
+| **The office.** The record, what the judge is, and what it cannot do — stated to the player, not just in this file. | **The file copy.** Dark mode is the office's duplicate on darker stock, not an inversion. |
+
+> Screenshots are from Expo Go on the iOS Simulator, which is why a blue
+> dev-tools button appears in the corner of each. It is Expo Go's, not the
+> app's. See [known limitations](#known-limitations) for why there is no native
+> build to shoot instead.
+
 ## Accessibility
 
 Not a polish item, and not asserted without tests.
@@ -201,6 +249,16 @@ Not a polish item, and not asserted without tests.
   the deliberate response to that, not a fix for it.
 - **No offline play.** Judging needs a network round trip.
 - **Not on the App Store.** Distribution is a development build and TestFlight.
+- **The native build does not compile on Xcode 26.3.** `expo-modules-jsi@57.0.7`
+  — the newest release for Expo SDK 57 — fails with
+  `'RuntimeScheduler' cannot be annotated with either SWIFT_RETURNS_RETAINED or
+  SWIFT_RETURNS_UNRETAINED` under Swift 6.2.4. It is an upstream C++/Swift
+  interop incompatibility, not something in this repository, and the only
+  published fix is an SDK 58 canary. Consequences, stated rather than hidden:
+  the app currently runs through Expo Go, the screenshots carry Expo Go's
+  dev-tools button, and the Phase 5 acceptance criterion "development build
+  installs on a physical iPhone via Xcode" is **not met on this machine**.
+  Everything else — the game, the judge, the tests, CI — is unaffected.
 
 ## Licence
 

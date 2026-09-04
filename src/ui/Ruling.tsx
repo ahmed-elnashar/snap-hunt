@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -37,6 +37,21 @@ const HELD_VEIL = 0.3;
 /** Pause after the print clears, before the die comes down. */
 const STRIKE_DELAY_MS = 220;
 
+/**
+ * The develop's floor, in milliseconds.
+ *
+ * Found by recording a round and stepping through the frames: when a ruling
+ * arrives almost immediately, the print is still fully veiled and the stamp
+ * lands on a blank rectangle. Measured latency is a 2.0s median so this is rare
+ * in the field, but "rare" is not "never" — a cached or unusually fast response
+ * produces it, and it makes the app's one animation look broken.
+ *
+ * The ruling therefore waits for the print to have had at least this long to
+ * come up before the veil clears and the die falls. `motion.develop` was always
+ * documented as a floor; this is the code that actually makes it one.
+ */
+const MIN_DEVELOP_MS = 700;
+
 export type RulingProps = {
   /** Null while the judge is still looking. */
   readonly verdict: Verdict | null;
@@ -56,16 +71,38 @@ export function Ruling({ verdict, imageUri, caseNumber }: RulingProps) {
   const ruled = verdict !== null;
   const awarded = verdict !== null && verdictAwardsPoint(verdict);
 
+  /**
+   * When this print began developing, so the floor can be measured from it.
+   *
+   * Stamped in an effect rather than in the ref initialiser: reading the clock
+   * during render is a side effect, and React may render more than once before
+   * committing. This effect is declared before the two that read it, so it has
+   * always run by the time they do.
+   */
+  const developingSince = useRef(0);
+  useEffect(() => {
+    developingSince.current = Date.now();
+  }, [imageUri]);
+
   useEffect(() => {
     if (reduced) {
       veil.value = 0;
       return;
     }
-    veil.value = withTiming(ruled ? 0 : HELD_VEIL, {
-      duration: ruled ? 300 : motion.develop,
-      easing: Easing.out(Easing.quad),
-    });
-  }, [ruled, reduced, veil]);
+    if (!ruled) {
+      // Comes up towards, but never reaches, clear. The judge is still looking.
+      veil.value = withTiming(HELD_VEIL, {
+        duration: motion.develop,
+        easing: Easing.out(Easing.quad),
+      });
+      return;
+    }
+    const owed = Math.max(0, MIN_DEVELOP_MS - (Date.now() - developingSince.current));
+    veil.value = withDelay(
+      owed,
+      withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) }),
+    );
+  }, [ruled, reduced, veil, imageUri]);
 
   useEffect(() => {
     if (!ruled) return;
@@ -79,8 +116,10 @@ export function Ruling({ verdict, imageUri, caseNumber }: RulingProps) {
       return;
     }
 
+    // The die waits for the print, so it can never land on a blank rectangle.
+    const owed = Math.max(0, MIN_DEVELOP_MS - (Date.now() - developingSince.current));
     struck.value = withDelay(
-      STRIKE_DELAY_MS,
+      owed + STRIKE_DELAY_MS,
       withTiming(1, { duration: motion.strike, easing: Easing.out(Easing.cubic) }),
     );
 
@@ -91,7 +130,7 @@ export function Ruling({ verdict, imageUri, caseNumber }: RulingProps) {
         thump();
         play('stamp');
       },
-      STRIKE_DELAY_MS + Math.round(motion.strike * 0.7),
+      owed + STRIKE_DELAY_MS + Math.round(motion.strike * 0.7),
     );
     return () => clearTimeout(contact);
   }, [ruled, reduced, struck]);
@@ -189,9 +228,15 @@ const makeStyles = (colour: Palette) =>
       paddingHorizontal: space.roomy,
       alignItems: 'center',
       gap: space.hair,
-      // Lands over the lower edge of the print, where a clerk's hand would be.
-      marginTop: -space.vast,
-      backgroundColor: colour.buff,
+      /*
+        Straddles the lower edge of the print, the way a clerk's stamp lands
+        across whatever is under it. No fill: ink does not come with paper
+        behind it, and a filled box reads as a label stuck on rather than an
+        impression made. The overlap is kept to the top edge so the word itself
+        sits on paper and stays legible whatever the photograph happens to be —
+        the same rule that keeps type off the camera preview.
+      */
+      marginTop: -space.roomy,
     },
     /** The point was awarded. A round die. */
     stampRing: { borderRadius: space.vast },

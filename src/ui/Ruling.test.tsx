@@ -131,7 +131,8 @@ describe('the stamp landing', () => {
   it('thumps and sounds at contact, not at the start of the travel', () => {
     render(<Ruling {...props} verdict={make({})} />);
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
-    jest.advanceTimersByTime(1000);
+    // Past the develop floor plus the strike travel. See MIN_DEVELOP_MS.
+    jest.advanceTimersByTime(1500);
     expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   });
 
@@ -181,5 +182,35 @@ describe('with reduce-motion enabled', () => {
     ).toBeOnTheScreen();
     expect(screen.getByText('ADMITTED')).toBeOnTheScreen();
     expect(screen.getByText('NO. 000412')).toBeOnTheScreen();
+  });
+});
+
+describe('a ruling that arrives immediately', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /**
+   * Found by recording a round and stepping through the frames: with an instant
+   * ruling the print was still fully veiled and the stamp landed on a blank
+   * rectangle. The develop now has a floor, so the die always has something to
+   * land on.
+   */
+  it('does not thump before the print has had time to develop', () => {
+    render(<Ruling {...props} verdict={make({})} />);
+    jest.advanceTimersByTime(300);
+    expect(Haptics.impactAsync).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1500);
+    expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('still thumps exactly once', () => {
+    render(<Ruling {...props} verdict={make({})} />);
+    jest.advanceTimersByTime(5000);
+    expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   });
 });

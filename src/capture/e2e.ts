@@ -29,6 +29,19 @@ export function isE2E(): boolean {
   return process.env.EXPO_PUBLIC_E2E === '1';
 }
 
+/**
+ * The harness waits as long as the real judge does.
+ *
+ * Measured median is 2.0s. Returning instantly would skip the develop
+ * altogether, which is the app's one animation — the flow would pass without
+ * ever rendering the screen it is supposed to be checking.
+ */
+export const E2E_JUDGE_DELAY_MS = 1_800;
+
+export function e2eDelay(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, E2E_JUDGE_DELAY_MS));
+}
+
 const FIXTURE = require('@/assets/e2e/submission.jpg') as number;
 
 /** Stands in for a captured photograph. */

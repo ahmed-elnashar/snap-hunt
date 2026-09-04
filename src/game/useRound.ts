@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 import { type PreparedImage } from '@/capture/downscale';
-import { e2eVerdict, isE2E } from '@/capture/e2e';
+import { e2eDelay, e2eVerdict, isE2E } from '@/capture/e2e';
 import { askTheJudge } from '@/judge/client';
 import { verdictAwardsPoint } from '@/judge/schema';
 import { getDeviceId } from '@/storage/deviceId';
@@ -166,11 +166,14 @@ export function useRound({
       // The E2E harness stands in for the network so the flow can run on a
       // simulator with no camera, no key and no signal. See src/capture/e2e.ts.
       const result = isE2E()
-        ? ({
-            kind: 'verdict',
-            verdict: e2eVerdict(prompt.text),
-            repaired: false,
-          } as const)
+        ? await e2eDelay().then(
+            () =>
+              ({
+                kind: 'verdict',
+                verdict: e2eVerdict(prompt.text),
+                repaired: false,
+              }) as const,
+          )
         : await askTheJudge({
             promptId: prompt.id,
             promptText: prompt.text,
