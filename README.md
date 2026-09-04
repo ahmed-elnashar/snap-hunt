@@ -282,11 +282,12 @@ Not a polish item, and not asserted without tests.
   and the shutter-beats-the-clock race cannot be answered by a simulator. The
   Maestro flow is written but has never been executed.
 - **No offline play.** Judging needs a network round trip.
-- **The web build is not the target.** `web.output: 'server'` exists so the API
-  route can be hosted, and the app happens to render there — the screens, the
-  fonts and the specimen sheet are all correct in a browser. But the round is
-  not playable on the web: the shutter does not advance, and the capture path
-  has never been built for it. iOS is the platform; the web output is a server.
+- **iOS is the target; the web output exists to host the API route.**
+  `web.output: 'server'` is what makes `app/api/judge+api.ts` deployable, and
+  the app renders in a browser as a side effect — correctly, fonts and both
+  schemes included. It is not a supported platform, though: the browser must
+  grant camera access, nothing about the capture path is tested there, and none
+  of the device matrix applies to it.
 - **Not on the App Store.** Distribution is a development build and TestFlight,
   and the TestFlight build waits on Apple Developer enrollment.
 - **One patched dependency**, and three versions pinned because of it. See
