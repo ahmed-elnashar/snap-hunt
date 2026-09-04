@@ -38,12 +38,21 @@ jobs:
       - name: Expo doctor
         run: npx expo-doctor
 
-      # The bundle is built with no key in the environment, then scanned. A key
-      # reaching the client bundle fails the build. See scripts/.
+      # The bundle is built WITH a key in the environment, then scanned.
+      #
+      # Building without one makes this gate vacuous: an export that never had
+      # a key cannot leak one, so the scan passes whether the code is right or
+      # wrong. The canary below is a real value for the scanner's identity
+      # check to match on, so the step fails the day someone renames the
+      # variable to EXPO_PUBLIC_ANTHROPIC_KEY and Metro starts inlining it.
+      #
+      # It is not a credential: it is a fixed string that has never been an
+      # Anthropic key. The real key lives only in the EAS server environment.
       - name: Build web bundle
         run: npx expo export --platform web --output-dir dist
         env:
           EXPO_PUBLIC_API_URL: https://example.invalid
+          ANTHROPIC_API_KEY: sk-ant-ci-canary-not-a-real-key-0000000000
 
       - name: Scan bundle for secrets
         run: npm run scan:secrets
