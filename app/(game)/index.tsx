@@ -6,7 +6,7 @@ import { Link, Redirect } from 'expo-router';
 
 import { prepareForJudge, type PreparedImage } from '@/capture/downscale';
 import { e2ePhoto, isE2E } from '@/capture/e2e';
-import { permissionStage } from '@/capture/permission';
+import { roundGate } from '@/capture/permission';
 import { space, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
 import { play } from '@/feedback/feedback';
@@ -60,12 +60,13 @@ export default function Round() {
     round.submit();
   }, [round]);
 
-  // The harness never asks for a camera it cannot use.
-  if (!isE2E() && permissionStage(permission) !== 'granted') {
-    return <Redirect href="/onboarding" />;
-  }
+  const gate = roundGate(permission, isE2E());
+  if (gate === 'onboard') return <Redirect href="/onboarding" />;
 
-  if (!loaded || state.kind === 'idle') {
+  // 'wait' is the permission hook's first render, before the OS has answered.
+  // It shares the blank sheet with the profile load: both are "we do not know
+  // yet", and both resolve without the player doing anything.
+  if (gate === 'wait' || !loaded || state.kind === 'idle') {
     return <View style={styles.paper} />;
   }
 

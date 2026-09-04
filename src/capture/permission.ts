@@ -34,3 +34,39 @@ export function permissionStage(permission: PermissionLike | null): PermissionSt
 export function needsSettingsTrip(permission: PermissionLike | null): boolean {
   return permissionStage(permission) === 'blocked';
 }
+
+export type RoundGate =
+  /** The OS has not answered this component yet. Hold the paper, do not move. */
+  | 'wait'
+  /** Genuinely not granted. Send the player to the one screen that can fix it. */
+  | 'onboard'
+  /** Show the camera. */
+  | 'play';
+
+/**
+ * What the round screen should do about a permission it may not know yet.
+ *
+ * `useCameraPermissions` holds its own state per component and starts at `null`
+ * on every mount, resolving in an effect. So `unknown` means "has not answered
+ * yet", never "refused" — and treating the two the same is a dead end rather
+ * than a slow screen:
+ *
+ *   round mounts -> null -> redirect to onboarding -> onboarding's own hook
+ *   resolves to granted -> redirect to round -> round mounts with a fresh null
+ *
+ * which never settles. Waiting one render is the whole fix. Pure so the loop is
+ * covered by a test rather than by remembering.
+ */
+export function roundGate(permission: PermissionLike | null, e2e: boolean): RoundGate {
+  // The harness never asks for a camera the simulator does not have.
+  if (e2e) return 'play';
+  switch (permissionStage(permission)) {
+    case 'unknown':
+      return 'wait';
+    case 'granted':
+      return 'play';
+    case 'ask':
+    case 'blocked':
+      return 'onboard';
+  }
+}

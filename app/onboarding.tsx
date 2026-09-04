@@ -1,5 +1,6 @@
+import { useCallback, useState } from 'react';
 import { Linking } from 'react-native';
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useCameraPermissions } from 'expo-camera';
 
 import { permissionStage } from '@/capture/permission';
@@ -17,10 +18,35 @@ import { PaperScreen } from '@/ui/PaperScreen';
  */
 export default function Onboarding() {
   const [permission, requestPermission] = useCameraPermissions();
-  const router = useRouter();
+  // A rejected request leaves the permission null forever, which would render
+  // the blank sheet below with nothing to press. See the ask() catch.
+  const [askFailed, setAskFailed] = useState(false);
   const stage = permissionStage(permission);
 
+  const ask = useCallback(() => {
+    setAskFailed(false);
+    // No router.replace here: granting updates the hook, which re-renders into
+    // the Redirect above. One mechanism for the navigation, not two racing.
+    void requestPermission().catch(() => setAskFailed(true));
+  }, [requestPermission]);
+
   if (stage === 'granted') return <Redirect href="/" />;
+
+  if (askFailed) {
+    return (
+      <PaperScreen
+        announce
+        ruling="The camera was asked for and the question went unanswered."
+        note="Nothing has been decided and nothing is held against you. Ask again; the office keeps the file open."
+      >
+        <PaperButton
+          label="Ask again"
+          hint="Requests camera access from iOS a second time."
+          onPress={ask}
+        />
+      </PaperScreen>
+    );
+  }
 
   // The OS has not answered yet. A blank sheet is better than a screen that
   // asks for something already granted.
@@ -52,11 +78,7 @@ export default function Onboarding() {
       <PaperButton
         label="Hand over the camera"
         hint="Asks iOS for camera access."
-        onPress={() => {
-          void requestPermission().then((next) => {
-            if (next.granted) router.replace('/');
-          });
-        }}
+        onPress={ask}
       />
     </PaperScreen>
   );

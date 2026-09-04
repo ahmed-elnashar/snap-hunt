@@ -64,6 +64,13 @@ silent switch and no real network conditions.
 ## Known gaps
 
 - The Maestro flow does not exercise the real judge, by design.
+- **The harness bypasses the camera permission gate entirely.** `EXPO_PUBLIC_E2E=1`
+  makes the round screen skip the permission branch, because the simulator has
+  no camera to grant. Every screenshot and recording in `docs/` was captured
+  that way, so none of them exercise onboarding -> grant -> round. A redirect
+  loop lived in exactly that branch and was invisible to all of them. `roundGate`
+  in `src/capture/permission.ts` now covers it in unit tests; the flow itself
+  still needs case 2 below, run by hand.
 - Nothing automatically verifies Dynamic Type or VoiceOver; cases 6–8 are the
   only coverage those have.
 - The rate limit is in-memory and per-instance, so case 10 depends on hitting
