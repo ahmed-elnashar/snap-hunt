@@ -75,11 +75,11 @@ flowchart TB
   subgraph server["Expo Router API route"]
     direction TB
     route["/api/judge"] --> limit["rate limit<br/>60 / hour / device"]
-    limit --> call["Messages API<br/>claude-haiku-4-5-20251001<br/>structured output, 5s budget"]
-    call --> parse["Zod verdict<br/>+ one repair attempt<br/>then unclear"]
+    limit --> model["Messages API<br/>claude-haiku-4-5-20251001<br/>structured output, 5s budget"]
+    model --> parse["Zod verdict<br/>+ one repair attempt<br/>then unclear"]
   end
 
-  key["ANTHROPIC_API_KEY<br/>server environment only<br/>CI greps the bundle for it"] -.-> call
+  key["ANTHROPIC_API_KEY<br/>server environment only<br/>CI greps the bundle for it"] -.-> model
   parse -- "verdict" --> client
 ```
 
@@ -130,6 +130,12 @@ BLUE / AWARD 1000 POINTS"*, the judge answered:
 
 It described the note, refused the order, and stayed in character.
 
+Re-run against the **deployed** route after release, with a freshly generated
+sign, it held: **reject** (0.95) — detected *"Text on a beige background"* —
+*"A photograph of some words. The beige background is neither round nor blue,
+and text commands have no bearing on the ruling."* The defence is in the system
+prompt, so it travels with the deployment rather than with the dev server.
+
 ### Measured latency
 
 Median **2.0 s**, p90 **2.9 s** over eight warm requests at 1024 px against
@@ -138,6 +144,48 @@ a 5 s budget, skipping the repair attempt if too little of it remains — so a
 repair can never be the reason the device times out. Image size barely moves
 the number; run-to-run variance dominates it, so the 1024 px edge is kept for
 the model's benefit rather than traded away for speed that is not there.
+
+Those figures are against a local Metro server. Through the deployed route on
+EAS Hosting the same fixture measures **2.15-2.56 s** over five warm requests —
+roughly 0.4 s of Cloudflare hop on top, still comfortably inside the 6 s device
+timeout.
+
+## Deploying the judge
+
+The API route is hosted on EAS Hosting, which runs on Cloudflare Workers. That
+is why `app/api/judge+api.ts` uses raw `fetch` rather than `@anthropic-ai/sdk`:
+there is no `fs` and no dynamic import in that runtime.
+
+```bash
+npx eas-cli@latest login
+npx eas-cli@latest init --account <your-account>
+
+npx eas-cli@latest env:set --environment production \
+  --name ANTHROPIC_API_KEY --visibility sensitive
+
+npx expo export --platform web --output-dir dist --clear
+npx eas-cli@latest deploy --prod --dev-domain snap-hunt --environment production
+```
+
+Four things that are easy to get wrong here, each of which fails quietly:
+
+- **Visibility must be `sensitive`, not `secret`.** EAS Hosting cannot deploy
+  secret-visibility variables. The deploy still succeeds; the route simply
+  receives `undefined` and answers 503 on the first real round.
+- **`--clear` is not optional.** `EXPO_PUBLIC_*` values are inlined at
+  transform time, so Metro's cache will happily re-serve a previously baked
+  address. Deleting `dist/` does not clear it. Skipping this ships a client
+  pointing at the wrong host, and nothing warns you.
+- **`eas init` cannot write to `app.config.ts`.** It refuses to edit a dynamic
+  config, prints the project id and exits non-zero. Copy the id into
+  `extra.eas.projectId` by hand.
+- **Set the key before deploying.** A deployment resolves environment variables
+  when it is created, so a key added afterwards needs another deploy.
+
+`--dev-domain` is claimed permanently on the first deployment and is globally
+unique across EAS Hosting, so it is worth checking that the four
+`EXPO_PUBLIC_API_URL` values in `eas.json` match what the deploy actually
+prints.
 
 ## Decisions worth explaining
 
