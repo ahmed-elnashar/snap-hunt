@@ -15,6 +15,20 @@ import { VerdictSchema } from './schema';
  */
 export const MAX_IMAGE_BASE64_CHARS = 2_000_000;
 
+/**
+ * Ceiling on the declared body size, checked from `content-length` before the
+ * body is read.
+ *
+ * MAX_IMAGE_BASE64_CHARS alone does not keep a large body out of the worker:
+ * it is a Zod check, and Zod runs after `request.json()` has already buffered
+ * the whole thing. This is the check that happens first. It is generous enough
+ * to clear the largest legitimate submission plus its JSON envelope.
+ *
+ * A chunked request declares no length, so this cannot be the only defence —
+ * the Zod cap still backs it up.
+ */
+export const MAX_REQUEST_BYTES = 2_200_000;
+
 /** Header carrying the anonymous device id used only for rate limiting. */
 export const DEVICE_ID_HEADER = 'x-snap-hunt-device';
 

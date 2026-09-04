@@ -4,6 +4,7 @@ import {
   DEVICE_ID_HEADER,
   DeviceIdSchema,
   JudgeRequestSchema,
+  MAX_REQUEST_BYTES,
   type JudgeResponse,
 } from './wire';
 
@@ -31,6 +32,13 @@ function json(body: JudgeResponse, status: number, headers?: HeadersInit): Respo
   });
 }
 
+function refuse(retryAfterMs: number): Response {
+  const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
+  return json({ ok: false, error: 'ratelimit', retryAfterSeconds }, 429, {
+    'retry-after': String(retryAfterSeconds),
+  });
+}
+
 export function createJudgeHandler({
   apiKey,
   limiter,
@@ -47,13 +55,19 @@ export function createJudgeHandler({
     const device = DeviceIdSchema.safeParse(request.headers.get(DEVICE_ID_HEADER));
     if (!device.success) return json({ ok: false, error: 'bad-request' }, 400);
 
-    const decision = limiter.check(device.data, now());
-    if (!decision.allowed) {
-      const retryAfterSeconds = Math.ceil(decision.retryAfterMs / 1000);
-      return json({ ok: false, error: 'ratelimit', retryAfterSeconds }, 429, {
-        'retry-after': String(retryAfterSeconds),
-      });
+    // Before the body is read, so an oversized one is refused rather than
+    // buffered. Absent on a chunked request; the Zod cap backs it up.
+    const declared = Number(request.headers.get('content-length'));
+    if (Number.isFinite(declared) && declared > MAX_REQUEST_BYTES) {
+      return json({ ok: false, error: 'bad-request' }, 413);
     }
+
+    // Peek before reading the body, so a device that is already over its cap
+    // costs this worker nothing: it is answered without its photograph ever
+    // being buffered. The allowance is spent further down, once the request
+    // has proved itself well formed.
+    const before = limiter.peek(device.data, now());
+    if (!before.allowed) return refuse(before.retryAfterMs);
 
     let raw: unknown;
     try {
@@ -68,6 +82,13 @@ export function createJudgeHandler({
       // the offending value can be the photograph.
       return json({ ok: false, error: 'bad-request' }, 400);
     }
+
+    // Charged only now the request is known to be well formed. The limit exists
+    // so one device cannot spend the API budget, and a malformed request spends
+    // none of it — taking an hourly allowance away for a client bug would cost
+    // the player rounds they never got to play.
+    const decision = limiter.check(device.data, now());
+    if (!decision.allowed) return refuse(decision.retryAfterMs);
 
     const outcome = await rule({
       apiKey,

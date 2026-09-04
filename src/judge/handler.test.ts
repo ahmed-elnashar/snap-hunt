@@ -2,7 +2,7 @@ import { type JudgeOutcome } from './anthropic';
 import { createJudgeHandler } from './handler';
 import { createRateLimiter } from './rateLimit';
 import { type Verdict } from './schema';
-import { DEVICE_ID_HEADER, JudgeResponseSchema } from './wire';
+import { DEVICE_ID_HEADER, JudgeResponseSchema, MAX_REQUEST_BYTES } from './wire';
 
 const VERDICT: Verdict = {
   verdict: 'accept',
@@ -157,6 +157,53 @@ describe('the judge route', () => {
       // answer, not a parse error: we never read it.
       const response = await handle(post({ raw: '{{{' }));
       expect(response.status).toBe(429);
+    });
+
+    it('does not spend the allowance on a request it refused as malformed', async () => {
+      // The limit exists so a device cannot spend the API budget. A malformed
+      // request spends none of it, so charging for one would take rounds away
+      // from a player for a client bug they cannot see.
+      const limiter = createRateLimiter({ limit: 2, windowMs: 3_600_000 });
+      const { handle, rule } = build({ limiter });
+
+      expect((await handle(post({ raw: '{{{' }))).status).toBe(400);
+      expect((await handle(post({ raw: '{{{' }))).status).toBe(400);
+      expect((await handle(post({ raw: body({ promptText: '' }) }))).status).toBe(400);
+
+      // All three were free: both real submissions still go through.
+      expect((await handle(post())).status).toBe(200);
+      expect((await handle(post())).status).toBe(200);
+      expect(rule).toHaveBeenCalledTimes(2);
+      expect((await handle(post())).status).toBe(429);
+    });
+  });
+
+  describe('oversized bodies', () => {
+    function oversized(): Request {
+      const headers = new Headers({
+        'content-type': 'application/json',
+        'content-length': String(MAX_REQUEST_BYTES + 1),
+        [DEVICE_ID_HEADER]: 'device-0123456789',
+      });
+      return new Request('https://judge.example/api/judge', {
+        method: 'POST',
+        headers,
+        body: body(),
+      });
+    }
+
+    it('refuses a declared length over the ceiling without calling the model', async () => {
+      const { handle, rule } = build();
+      const response = await handle(oversized());
+      expect(response.status).toBe(413);
+      expect(rule).not.toHaveBeenCalled();
+    });
+
+    it('does not spend the allowance on one either', async () => {
+      const limiter = createRateLimiter({ limit: 1, windowMs: 3_600_000 });
+      const { handle } = build({ limiter });
+      await handle(oversized());
+      expect((await handle(post())).status).toBe(200);
     });
   });
 

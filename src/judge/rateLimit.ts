@@ -26,6 +26,15 @@ export type RateLimiterOptions = {
 };
 
 export type RateLimiter = {
+  /**
+   * Would this device be allowed, without recording anything.
+   *
+   * Lets a caller refuse an over-limit device before reading its request body,
+   * while still only charging the allowance once the request is known to be
+   * worth charging for.
+   */
+  peek(key: string, now: number): RateLimitDecision;
+  /** Records a hit and decides. */
   check(key: string, now: number): RateLimitDecision;
   /** Devices currently tracked. For tests and diagnostics. */
   size(): number;
@@ -50,10 +59,28 @@ export function createRateLimiter({
     }
   }
 
+  /** Hits inside the window, oldest first. */
+  function recentFor(key: string, now: number): number[] {
+    const cutoff = now - windowMs;
+    return (hits.get(key) ?? []).filter((at) => at > cutoff);
+  }
+
+  function refused(recent: number[], now: number): RateLimitDecision {
+    // recent.length >= limit >= 1, so index 0 exists.
+    const oldest = recent[0] as number;
+    return { allowed: false, retryAfterMs: Math.max(0, oldest + windowMs - now) };
+  }
+
   return {
+    peek(key, now) {
+      const recent = recentFor(key, now);
+      return recent.length >= limit
+        ? refused(recent, now)
+        : { allowed: true, remaining: limit - recent.length };
+    },
+
     check(key, now) {
-      const cutoff = now - windowMs;
-      const recent = (hits.get(key) ?? []).filter((at) => at > cutoff);
+      const recent = recentFor(key, now);
 
       if (recent.length >= limit) {
         // Re-insert so a device that keeps knocking stays more recently used
@@ -62,8 +89,7 @@ export function createRateLimiter({
         // purpose, and forgiving a device is the safer failure.
         hits.delete(key);
         hits.set(key, recent);
-        const oldest = recent[0] as number;
-        return { allowed: false, retryAfterMs: Math.max(0, oldest + windowMs - now) };
+        return refused(recent, now);
       }
 
       recent.push(now);

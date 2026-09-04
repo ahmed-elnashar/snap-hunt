@@ -88,3 +88,28 @@ describe('createRateLimiter', () => {
     expect(() => createRateLimiter({ limit, windowMs })).toThrow(/must be at least/);
   });
 });
+
+describe('peek', () => {
+  it('does not record, so asking costs nothing', () => {
+    const limiter = createRateLimiter({ limit: 2, windowMs: 1_000 });
+    for (let i = 0; i < 50; i += 1) limiter.peek('device-a', 0);
+    expect(limiter.peek('device-a', 0)).toEqual({ allowed: true, remaining: 2 });
+    expect(limiter.size()).toBe(0);
+  });
+
+  it('agrees with check about who is over the cap', () => {
+    const limiter = createRateLimiter({ limit: 1, windowMs: 1_000 });
+    expect(limiter.peek('device-a', 0).allowed).toBe(true);
+    limiter.check('device-a', 0);
+    expect(limiter.peek('device-a', 0).allowed).toBe(false);
+    const refusal = limiter.peek('device-a', 400);
+    expect(refusal.allowed === false && refusal.retryAfterMs).toBe(600);
+  });
+
+  it('forgets a device once its window has passed', () => {
+    const limiter = createRateLimiter({ limit: 1, windowMs: 1_000 });
+    limiter.check('device-a', 0);
+    expect(limiter.peek('device-a', 999).allowed).toBe(false);
+    expect(limiter.peek('device-a', 1_001).allowed).toBe(true);
+  });
+});

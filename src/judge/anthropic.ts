@@ -172,7 +172,10 @@ export async function ruleOnPhotograph({
   // One repair attempt, sending the model its own malformed output — but only
   // if there is time left for it before the device stops waiting.
   if (deadline - now() < REPAIR_MIN_BUDGET_MS) {
-    return { ok: true, verdict: ILLEGIBLE_RULING, repaired: true };
+    // repaired: false, because no repair was attempted. The flag reports what
+    // happened, not how the ruling turned out; saying otherwise would put a
+    // false statement on the wire.
+    return { ok: true, verdict: ILLEGIBLE_RULING, repaired: false };
   }
 
   messages.push({ role: 'assistant', content: first });
