@@ -7,7 +7,7 @@ import { Link, Redirect } from 'expo-router';
 import { prepareForJudge, type PreparedImage } from '@/capture/downscale';
 import { e2ePhoto, isE2E } from '@/capture/e2e';
 import { PERMISSION_STALL_MS, roundGate } from '@/capture/permission';
-import { space, type, type Palette } from '@/design/tokens';
+import { MIN_TOUCH_TARGET_PT, space, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
 import { play } from '@/feedback/feedback';
 import { hashString } from '@/game/prompts';
@@ -266,7 +266,7 @@ const makeStyles = (colour: Palette) =>
     },
     aside: {
       alignSelf: 'flex-start',
-      minHeight: 44,
+      minHeight: MIN_TOUCH_TARGET_PT,
       justifyContent: 'center',
       paddingVertical: space.base,
       paddingRight: space.wide,

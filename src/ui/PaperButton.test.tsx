@@ -1,6 +1,22 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
+import { MIN_TOUCH_TARGET_PT } from '@/design/tokens';
+
 import { PaperButton } from './PaperButton';
+
+/** Flattens the style prop, which RN gives as an array or a function result. */
+function minHeightOf(element: { props: { style?: unknown } }): number {
+  const style = element.props.style;
+  const resolved = typeof style === 'function' ? style({ pressed: false }) : style;
+  const layers: unknown[] = Array.isArray(resolved) ? resolved.flat(9) : [resolved];
+  for (const layer of layers) {
+    if (typeof layer === 'object' && layer !== null && 'minHeight' in layer) {
+      const value = (layer as { minHeight?: unknown }).minHeight;
+      if (typeof value === 'number') return value;
+    }
+  }
+  return 0;
+}
 
 describe('PaperButton', () => {
   it('presses', () => {
@@ -29,5 +45,14 @@ describe('PaperButton', () => {
     expect(screen.getByRole('button', { name: 'Take it again' })).not.toHaveProp(
       'accessibilityHint',
     );
+  });
+
+  it('is at least as tall as the minimum touch target', () => {
+    // A 13pt text link shipped once, and the only thing that caught it was
+    // trying to tap it on a real screen. This is the assertion that would
+    // have caught it instead.
+    render(<PaperButton label="Take the next one" onPress={jest.fn()} />);
+    const button = screen.getByRole('button', { name: 'Take the next one' });
+    expect(minHeightOf(button)).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PT);
   });
 });

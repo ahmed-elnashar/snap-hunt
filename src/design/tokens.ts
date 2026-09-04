@@ -111,6 +111,16 @@ export const space = {
 } as const;
 
 /** Line weights, in points. Printed rules are thin; stamped edges are not. */
+/**
+ * Smallest interactive target, in points. Apple's HIG minimum.
+ *
+ * Named here because it was once missed: a bare 13pt text link shipped as a
+ * tap target and was only caught by trying to hit it while driving the real
+ * app. A number that lives in one place can be asserted; one typed inline
+ * twice cannot.
+ */
+export const MIN_TOUCH_TARGET_PT = 44;
+
 export const stroke = {
   rule: 1,
   timer: 4,

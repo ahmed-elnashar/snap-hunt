@@ -66,6 +66,7 @@ const makeStyles = (colour: Palette) =>
       paddingVertical: space.base,
       paddingHorizontal: space.roomy,
       backgroundColor: colour.buff,
+      // Above the minimum, not merely at it; the assertion is in the test.
       minHeight: 48,
       justifyContent: 'center',
     },
