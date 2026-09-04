@@ -11,9 +11,9 @@ concurrency:
 
 jobs:
   verify:
-    name: typecheck, lint, test, secret scan
+    name: typecheck, lint, test, secret scan, audit
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v5
@@ -48,16 +48,8 @@ jobs:
       - name: Scan bundle for secrets
         run: npm run scan:secrets
 
-  audit:
-    name: npm audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
+      # Runs here rather than in its own job: a separate job pays for a second
+      # `npm ci`, which is most of the runtime, and it blew a 10-minute budget
+      # doing nothing but reinstalling what this job already has.
       - name: Audit (high and critical only)
         run: npm audit --audit-level=high
