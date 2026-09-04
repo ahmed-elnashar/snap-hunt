@@ -10,6 +10,9 @@ import type { ExpoConfig } from 'expo/config';
 const config: ExpoConfig = {
   name: 'Snap Hunt',
   slug: 'snap-hunt',
+  // The EAS account that owns the project. Set before `eas init` so the link
+  // cannot land on the wrong account; `eas init` then writes extra.eas.projectId.
+  owner: 'ahmed-elnashar',
   version: '1.0.0',
   orientation: 'portrait',
   scheme: 'snaphunt',
@@ -62,6 +65,14 @@ const config: ExpoConfig = {
   ],
   experiments: {
     typedRoutes: true,
+  },
+  extra: {
+    eas: {
+      // Written by hand: `eas init` cannot modify a dynamic TypeScript config,
+      // so it prints this and exits. Identifies the project on EAS; it is an
+      // identifier, not a credential. Account owner is `owner` above.
+      projectId: '137b3571-ee2a-48a8-8933-567f974f1d61',
+    },
   },
 };
 
