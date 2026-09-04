@@ -1,47 +1,24 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Redirect } from 'expo-router';
+import { Link, Redirect } from 'expo-router';
 
 import { prepareForJudge, type PreparedImage } from '@/capture/downscale';
 import { permissionStage } from '@/capture/permission';
 import { space, stroke, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
-import { askTheJudge, type JudgeFailure } from '@/judge/client';
+import { useRound } from '@/game/useRound';
 import { copyForFailure } from '@/judge/copy';
-import { type Verdict } from '@/judge/schema';
-import { getDeviceId } from '@/storage/deviceId';
 import { PaperButton } from '@/ui/PaperButton';
 import { PaperScreen } from '@/ui/PaperScreen';
 import { PromptBand } from '@/ui/PromptBand';
 import { Ruling } from '@/ui/Ruling';
 import { Shutter } from '@/ui/Shutter';
+import { Tally } from '@/ui/Tally';
 
-/**
- * Phase 2: a photograph goes to the judge and a ruling comes back. The prompt
- * is fixed and there is no clock until Phase 3, and the stamp does not yet land
- * — Phase 4 animates it. The composition on screen is already the resting state.
- */
-const PLACEHOLDER_PROMPT = { id: 'round-blue-01', text: 'something round and blue' };
-
-type Screen =
-  | { readonly kind: 'framing' }
-  | { readonly kind: 'working'; readonly image: PreparedImage | null }
-  | {
-      readonly kind: 'ruled';
-      readonly image: PreparedImage;
-      readonly verdict: Verdict;
-      readonly caseNumber: string;
-    }
-  | {
-      readonly kind: 'failed';
-      readonly reason: JudgeFailure;
-      readonly retryAfterSeconds?: number;
-    };
-
-function formatCaseNumber(n: number): string {
-  return `NO. ${String(n % 1_000_000).padStart(6, '0')}`;
+function caseNumber(points: number, roundsPlayed: number): string {
+  return `NO. ${String((roundsPlayed * 37 + points) % 1_000_000).padStart(6, '0')}`;
 }
 
 export default function Round() {
@@ -50,108 +27,109 @@ export default function Round() {
   const insets = useSafeAreaInsets();
   const [permission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
-  const caseSeq = useRef(411);
 
-  const [screen, setScreen] = useState<Screen>({ kind: 'framing' });
-
-  const submit = useCallback(async () => {
-    if (camera.current === null) return;
-    setScreen({ kind: 'working', image: null });
-
-    let image: PreparedImage;
-    try {
-      // No skipProcessing: it returns the sensor's own orientation, and a
-      // photograph handed to the judge sideways is a different photograph.
-      const photo = await camera.current.takePictureAsync({
-        quality: 0.8,
-        base64: false,
-        exif: false,
-      });
-      if (photo === undefined) {
-        setScreen({ kind: 'failed', reason: 'unparseable' });
-        return;
-      }
-      image = await prepareForJudge(photo);
-    } catch {
-      setScreen({ kind: 'failed', reason: 'unparseable' });
-      return;
-    }
-
-    setScreen({ kind: 'working', image });
-
-    const result = await askTheJudge({
-      promptId: PLACEHOLDER_PROMPT.id,
-      promptText: PLACEHOLDER_PROMPT.text,
-      imageBase64: image.base64,
-      deviceId: await getDeviceId(),
+  const takePhoto = useCallback(async (): Promise<PreparedImage | null> => {
+    if (camera.current === null) return null;
+    // No skipProcessing: it returns the sensor's own orientation, and a
+    // photograph handed to the judge sideways is a different photograph.
+    const photo = await camera.current.takePictureAsync({
+      quality: 0.8,
+      base64: false,
+      exif: false,
     });
-
-    if (result.kind === 'failed') {
-      caseSeq.current += 1;
-      setScreen(
-        result.retryAfterSeconds === undefined
-          ? { kind: 'failed', reason: result.reason }
-          : {
-              kind: 'failed',
-              reason: result.reason,
-              retryAfterSeconds: result.retryAfterSeconds,
-            },
-      );
-      return;
-    }
-
-    caseSeq.current += 1;
-    setScreen({
-      kind: 'ruled',
-      image,
-      verdict: result.verdict,
-      caseNumber: formatCaseNumber(caseSeq.current),
-    });
+    return photo === undefined ? null : prepareForJudge(photo);
   }, []);
 
-  const reframe = useCallback(() => setScreen({ kind: 'framing' }), []);
+  const round = useRound({ takePhoto });
+  const { state, profile, loaded, startRound } = round;
+
+  // Deal the first round as soon as the record is known, because the untimed
+  // round zero depends on whether this player has played before.
+  useEffect(() => {
+    if (loaded && state.kind === 'idle') startRound();
+  }, [loaded, state.kind, startRound]);
 
   if (permissionStage(permission) !== 'granted') {
     return <Redirect href="/onboarding" />;
   }
 
-  if (screen.kind === 'failed') {
-    const copy = copyForFailure(screen.reason, screen.retryAfterSeconds);
+  if (!loaded || state.kind === 'idle') {
+    return <View style={styles.paper} />;
+  }
+
+  if (state.kind === 'expired') {
     return (
-      <PaperScreen announce ruling={copy.ruling} note={copy.note}>
-        <PaperButton label={copy.action} onPress={reframe} />
+      <PaperScreen
+        announce
+        ruling="Time. The submission was not made."
+        note="No ruling, and nothing against you. Your streak is intact."
+      >
+        <PaperButton label="Take the next one" onPress={round.startRound} />
       </PaperScreen>
     );
   }
 
-  if (screen.kind === 'ruled') {
+  if (state.kind === 'failed') {
+    const copy = copyForFailure(state.reason);
+    return (
+      <PaperScreen announce ruling={copy.ruling} note={copy.note}>
+        <PaperButton label={copy.action} onPress={round.retry} />
+        <PaperButton label="Take a different one" onPress={round.startRound} />
+      </PaperScreen>
+    );
+  }
+
+  if (state.kind === 'verdict') {
     return (
       <SafeAreaView style={styles.paper}>
         <ScrollView contentContainerStyle={styles.rulingSheet}>
           <Ruling
-            verdict={screen.verdict}
-            imageUri={screen.image.uri}
-            caseNumber={screen.caseNumber}
+            verdict={state.verdict}
+            imageUri={state.uri}
+            caseNumber={caseNumber(state.points, profile.roundsPlayed)}
           />
-          <PaperButton label="Next submission" onPress={reframe} />
+          <Tally
+            entries={[
+              {
+                label: 'awarded',
+                value: String(state.points),
+                accessibilityLabel: `${state.points} points awarded this round`,
+              },
+              {
+                label: 'streak',
+                value: String(state.streakAfter),
+                accessibilityLabel:
+                  state.streakAfter === 0
+                    ? 'Streak broken'
+                    : `Streak of ${state.streakAfter}`,
+              },
+              {
+                label: 'total',
+                value: String(profile.totalPoints),
+                accessibilityLabel: `${profile.totalPoints} points in total`,
+              },
+            ]}
+          />
+          <PaperButton label="Next submission" onPress={round.startRound} />
+          <Link href="/about" style={styles.aside}>
+            <Text style={styles.asideText}>The office</Text>
+          </Link>
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  if (screen.kind === 'working') {
+  if (state.kind === 'captured' || state.kind === 'judging') {
     return (
       <SafeAreaView style={styles.paper}>
         <View style={styles.working}>
-          {screen.image !== null && (
-            <Image
-              source={{ uri: screen.image.uri }}
-              style={styles.developing}
-              resizeMode="cover"
-              accessibilityIgnoresInvertColors
-              accessibilityLabel="Your photograph, developing"
-            />
-          )}
+          <Image
+            source={{ uri: state.uri }}
+            style={styles.developing}
+            resizeMode="cover"
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="Your photograph, developing"
+          />
           <Text style={styles.workingNote} accessibilityLiveRegion="polite">
             The judge is looking.
           </Text>
@@ -166,17 +144,22 @@ export default function Round() {
         ref={camera}
         style={StyleSheet.absoluteFill}
         facing="back"
-        // The preview is decoration for VoiceOver; the prompt and the shutter
-        // carry everything a non-sighted player acts on.
+        // The preview is decoration for VoiceOver; the prompt, timer and
+        // shutter carry everything a non-sighted player acts on.
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       />
       <SafeAreaView style={styles.chrome} edges={[]} pointerEvents="box-none">
-        <PromptBand prompt={PLACEHOLDER_PROMPT.text} topInset={insets.top} />
+        <PromptBand
+          prompt={state.prompt.text}
+          topInset={insets.top}
+          remainingMs={round.remaining}
+          isDaily={round.isDaily}
+        />
         <View
           style={[styles.shutterBand, { paddingBottom: insets.bottom + space.roomy }]}
         >
-          <Shutter onPress={() => void submit()} />
+          <Shutter onPress={round.submit} busy={round.submitting} />
         </View>
       </SafeAreaView>
     </View>
@@ -205,7 +188,7 @@ const makeStyles = (colour: Palette) =>
       flexGrow: 1,
       justifyContent: 'center',
       padding: space.roomy,
-      gap: space.wide,
+      gap: space.roomy,
     },
     working: {
       flex: 1,
@@ -213,7 +196,7 @@ const makeStyles = (colour: Palette) =>
       padding: space.roomy,
       gap: space.roomy,
     },
-    // Phase 4 brings this up to full contrast over the judge's round trip.
+    // Phase 4 brings this up to full contrast as the ruling arrives.
     developing: {
       width: '100%',
       aspectRatio: 1,
@@ -222,4 +205,6 @@ const makeStyles = (colour: Palette) =>
       borderColor: colour.bleed,
     },
     workingNote: { ...type.body, color: colour.bleed, textAlign: 'center' },
+    aside: { alignSelf: 'flex-start' },
+    asideText: { ...type.label, color: colour.bleed },
   });

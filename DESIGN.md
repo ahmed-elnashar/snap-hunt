@@ -389,3 +389,20 @@ until the stamp was made to report the outcome.
 
 Both dies are still inked in the same violet. `Ruling` computes the shape from
 `verdictAwardsPoint`, so the screen cannot disagree with the scoring rule.
+
+### A3 — the mono rule is a principle, not a count
+
+**What changed.** Pass 1 said Martian Mono appears in "exactly two roles". The
+tally — points, streak, best streak — is a third, and it is a column of figures
+that has to align, which is the one thing a monospace is actually for.
+
+**Restated.** *Martian Mono is used only where the content is a number being
+read off. It is never a label typeface and never a prose face.* That was always
+the real rule; "exactly two" was a proxy for it, and a proxy that would have
+forced the tally into a proportional face purely to protect a number.
+
+The three mono roles are now `countdown`, `caseNumber` and `tally`. A unit test
+asserts that exact set, so adding a fourth is a deliberate act with a test to
+update rather than a drift — which is what the count was protecting against.
+A second test asserts every prose role is Archivo, so the boundary holds from
+both directions.

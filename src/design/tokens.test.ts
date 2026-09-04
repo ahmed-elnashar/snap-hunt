@@ -90,11 +90,22 @@ describe('type scale', () => {
     }
   });
 
-  it('uses Martian Mono for exactly the two readout roles', () => {
+  /**
+   * DESIGN.md A3: mono is for content that is a number being read off, never
+   * for a label typeface. Asserting the exact set means adding a mono role is
+   * a deliberate act with a test to update, not a drift.
+   */
+  it('uses Martian Mono only for numeric readouts', () => {
     const mono = Object.entries(type)
       .filter(([, style]) => style.fontFamily.startsWith('MartianMono'))
       .map(([role]) => role);
-    expect(mono.sort()).toEqual(['caseNumber', 'countdown']);
+    expect(mono.sort()).toEqual(['caseNumber', 'countdown', 'tally']);
+  });
+
+  it('sets every prose role in Archivo, so mono never becomes a label face', () => {
+    for (const role of ['prompt', 'ruling', 'body', 'label', 'stampFace'] as const) {
+      expect(type[role].fontFamily.startsWith('Archivo')).toBe(true);
+    }
   });
 });
 

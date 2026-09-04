@@ -1,0 +1,255 @@
+{
+  "version": 1,
+  "prompts": [
+    { "id": "round-and-blue", "text": "something round and blue", "tier": "routine" },
+    { "id": "with-a-handle", "text": "something with a handle", "tier": "routine" },
+    { "id": "made-of-glass", "text": "something made of glass", "tier": "routine" },
+    {
+      "id": "with-writing-on-it",
+      "text": "something with writing on it",
+      "tier": "routine"
+    },
+    {
+      "id": "has-been-repaired",
+      "text": "something that has been repaired",
+      "tier": "routine"
+    },
+    {
+      "id": "hole-through-it",
+      "text": "something with a hole through it",
+      "tier": "routine"
+    },
+    { "id": "that-plugs-in", "text": "something that plugs in", "tier": "routine" },
+    { "id": "with-a-lid", "text": "something with a lid", "tier": "routine" },
+    {
+      "id": "rectangular-and-white",
+      "text": "something rectangular and white",
+      "tier": "routine"
+    },
+    { "id": "that-folds", "text": "something that folds", "tier": "routine" },
+    {
+      "id": "green-not-a-plant",
+      "text": "something green that is not a plant",
+      "tier": "routine"
+    },
+    { "id": "with-a-button", "text": "something with a button on it", "tier": "routine" },
+    { "id": "see-through", "text": "something you can see through", "tier": "routine" },
+    {
+      "id": "both-hands",
+      "text": "something you would need both hands to carry",
+      "tier": "routine"
+    },
+    {
+      "id": "smaller-than-a-thumb",
+      "text": "something smaller than your thumb",
+      "tier": "routine"
+    },
+    {
+      "id": "one-of-a-pair",
+      "text": "something that is one of a pair",
+      "tier": "routine"
+    },
+    { "id": "made-of-wood", "text": "something made of wood", "tier": "routine" },
+    { "id": "that-hangs", "text": "something that hangs", "tier": "routine" },
+    {
+      "id": "with-a-number",
+      "text": "something with a number printed on it",
+      "tier": "routine"
+    },
+    { "id": "striped", "text": "something striped", "tier": "routine" },
+
+    {
+      "id": "seen-better-days",
+      "text": "something that has clearly seen better days",
+      "tier": "contested"
+    },
+    {
+      "id": "does-not-belong",
+      "text": "something that does not belong where it is",
+      "tier": "contested"
+    },
+    {
+      "id": "more-than-four-legs",
+      "text": "something with more than four legs",
+      "tier": "contested"
+    },
+    {
+      "id": "worn-by-hands",
+      "text": "something worn smooth by hands",
+      "tier": "contested"
+    },
+    {
+      "id": "designed-to-be-ignored",
+      "text": "something designed to be ignored",
+      "tier": "contested"
+    },
+    { "id": "would-float", "text": "something that would float", "tier": "contested" },
+    {
+      "id": "identical-twin-nearby",
+      "text": "something with an identical twin nearby",
+      "tier": "contested"
+    },
+    {
+      "id": "curve-and-a-corner",
+      "text": "something with a curve and a corner",
+      "tier": "contested"
+    },
+    {
+      "id": "left-behind",
+      "text": "something somebody left behind",
+      "tier": "contested"
+    },
+    {
+      "id": "fits-in-a-matchbox",
+      "text": "something that would fit in a matchbox",
+      "tier": "contested"
+    },
+    {
+      "id": "serial-number",
+      "text": "something with a serial number on it",
+      "tier": "contested"
+    },
+    {
+      "id": "wrong-size-for-its-job",
+      "text": "something the wrong size for its job",
+      "tier": "contested"
+    },
+    {
+      "id": "holding-something-up",
+      "text": "something that is holding something else up",
+      "tier": "contested"
+    },
+    {
+      "id": "exactly-one-colour",
+      "text": "something that is exactly one colour",
+      "tier": "contested"
+    },
+    {
+      "id": "casting-a-shadow",
+      "text": "something casting a shadow you can see",
+      "tier": "contested"
+    },
+    {
+      "id": "made-by-hand",
+      "text": "something that was made by hand",
+      "tier": "contested"
+    },
+    {
+      "id": "nearly-a-circle",
+      "text": "something nearly a circle, but not quite",
+      "tier": "contested"
+    },
+    {
+      "id": "has-stopped-working",
+      "text": "something that has stopped working",
+      "tier": "contested"
+    },
+    {
+      "id": "shape-of-its-container",
+      "text": "something the same shape as what it came in",
+      "tier": "contested"
+    },
+    {
+      "id": "mended-badly",
+      "text": "something that has been mended badly",
+      "tier": "contested"
+    },
+
+    {
+      "id": "pretending-to-be",
+      "text": "something pretending to be something else",
+      "tier": "exceptional"
+    },
+    {
+      "id": "gone-by-tomorrow",
+      "text": "something that will be gone by tomorrow",
+      "tier": "exceptional"
+    },
+    {
+      "id": "outlived-its-use",
+      "text": "something that has outlived its usefulness",
+      "tier": "exceptional"
+    },
+    {
+      "id": "touched-by-thousands",
+      "text": "something touched by more people than you could count",
+      "tier": "exceptional"
+    },
+    {
+      "id": "with-a-mistake-in-it",
+      "text": "something with a mistake in it",
+      "tier": "exceptional"
+    },
+    {
+      "id": "somebody-was-here",
+      "text": "something that suggests somebody was here",
+      "tier": "exceptional"
+    },
+    {
+      "id": "hard-to-explain",
+      "text": "something that would be hard to explain to a stranger",
+      "tier": "exceptional"
+    },
+    {
+      "id": "almost-symmetrical",
+      "text": "something almost symmetrical, and worse for it",
+      "tier": "exceptional"
+    },
+    {
+      "id": "older-than-you",
+      "text": "something that looks older than you are",
+      "tier": "exceptional"
+    },
+    {
+      "id": "obviously-a-compromise",
+      "text": "something that is obviously a compromise",
+      "tier": "exceptional"
+    },
+    {
+      "id": "somebody-cared-about",
+      "text": "something somebody clearly cared about",
+      "tier": "exceptional"
+    },
+    { "id": "in-the-way", "text": "something that is in the way", "tier": "exceptional" },
+    {
+      "id": "far-too-many-of",
+      "text": "something there are far too many of",
+      "tier": "exceptional"
+    },
+    {
+      "id": "trying-to-warn-you",
+      "text": "something that is trying to warn you",
+      "tier": "exceptional"
+    },
+    {
+      "id": "job-it-was-not-made-for",
+      "text": "something doing a job it was not made for",
+      "tier": "exceptional"
+    },
+    {
+      "id": "nearly-empty",
+      "text": "something that is nearly empty",
+      "tier": "exceptional"
+    },
+    {
+      "id": "arranged-by-a-person",
+      "text": "something arranged in a line by a person",
+      "tier": "exceptional"
+    },
+    {
+      "id": "temporary-but-not",
+      "text": "something meant to be temporary that clearly is not",
+      "tier": "exceptional"
+    },
+    {
+      "id": "a-face-not-alive",
+      "text": "something with a face that is not alive",
+      "tier": "exceptional"
+    },
+    {
+      "id": "oldest-thing-in-sight",
+      "text": "the oldest thing you can see from where you stand",
+      "tier": "exceptional"
+    }
+  ]
+}

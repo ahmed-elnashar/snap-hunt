@@ -89,10 +89,12 @@ export const type = {
   label: { fontFamily: family.archivoMedium, fontSize: 13, lineHeight: 18 },
   /** The word cut into the rubber: ADMITTED / NOT ADMITTED. */
   stampFace: { fontFamily: family.archivoBold, fontSize: 19, lineHeight: 21 },
-  /** Readout 1: the countdown numeral, last five seconds only. */
+  /** Readout: the countdown numeral, last five seconds only. */
   countdown: { fontFamily: family.monoSemiBold, fontSize: 40, lineHeight: 44 },
-  /** Readout 2: the case number printed on the stamp. */
+  /** Readout: the case number printed on the stamp. */
   caseNumber: { fontFamily: family.monoRegular, fontSize: 11, lineHeight: 14 },
+  /** Readout: figures in the tally, which need to align in a column. */
+  tally: { fontFamily: family.monoSemiBold, fontSize: 26, lineHeight: 32 },
 } as const;
 
 export type TypeRole = keyof typeof type;
