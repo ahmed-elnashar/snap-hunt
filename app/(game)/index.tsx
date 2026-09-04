@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Link, Redirect } from 'expo-router';
 
 import { prepareForJudge, type PreparedImage } from '@/capture/downscale';
+import { e2ePhoto, isE2E } from '@/capture/e2e';
 import { permissionStage } from '@/capture/permission';
 import { space, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
@@ -33,6 +34,7 @@ export default function Round() {
   const camera = useRef<CameraView>(null);
 
   const takePhoto = useCallback(async (): Promise<PreparedImage | null> => {
+    if (isE2E()) return e2ePhoto();
     if (camera.current === null) return null;
     // No skipProcessing: it returns the sensor's own orientation, and a
     // photograph handed to the judge sideways is a different photograph.
@@ -58,7 +60,8 @@ export default function Round() {
     round.submit();
   }, [round]);
 
-  if (permissionStage(permission) !== 'granted') {
+  // The harness never asks for a camera it cannot use.
+  if (!isE2E() && permissionStage(permission) !== 'granted') {
     return <Redirect href="/onboarding" />;
   }
 
@@ -140,15 +143,27 @@ export default function Round() {
 
   return (
     <View style={styles.root}>
-      <CameraView
-        ref={camera}
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        // The preview is decoration for VoiceOver; the prompt, timer and
-        // shutter carry everything a non-sighted player acts on.
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      />
+      {/* The simulator has no camera, so the harness shows the submission it
+          is about to hand in rather than a black rectangle. */}
+      {isE2E() ? (
+        <Image
+          source={require('@/assets/e2e/submission.jpg')}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      ) : (
+        <CameraView
+          ref={camera}
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          // The preview is decoration for VoiceOver; the prompt, timer and
+          // shutter carry everything a non-sighted player acts on.
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      )}
       <SafeAreaView style={styles.chrome} edges={[]} pointerEvents="box-none">
         <PromptBand
           prompt={state.prompt.text}

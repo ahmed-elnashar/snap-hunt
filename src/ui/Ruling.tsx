@@ -131,6 +131,7 @@ export function Ruling({ verdict, imageUri, caseNumber }: RulingProps) {
 
       {ruled && (
         <Animated.View
+          testID="ruling-stamp"
           style={[styles.stamp, awarded ? styles.stampRing : styles.stampBar, stampStyle]}
           accessibilityRole="image"
           accessibilityLabel={awarded ? 'Stamped admitted' : 'Stamped not admitted'}

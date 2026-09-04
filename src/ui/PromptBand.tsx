@@ -39,7 +39,10 @@ export function PromptBand({ prompt, topInset, remainingMs, isDaily }: PromptBan
   const showNumeral = !untimed && remainingMs <= NUMERAL_THRESHOLD_MS;
 
   return (
-    <View style={[styles.band, { paddingTop: topInset + space.base }]}>
+    <View
+      testID="prompt-band"
+      style={[styles.band, { paddingTop: topInset + space.base }]}
+    >
       {isDaily === true && <Text style={styles.label}>Today&apos;s submission</Text>}
 
       <View style={styles.line}>

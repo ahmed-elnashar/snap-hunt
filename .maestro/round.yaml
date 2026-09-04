@@ -1,0 +1,67 @@
+# One flow: launch, first round, capture, ruling, score, next round.
+#
+# Runs against a simulator build made with EXPO_PUBLIC_E2E=1, which stands in
+# for the camera the simulator does not have and for the judge. Everything
+# between them is real: the state machine, the clock, scoring, the streak,
+# persistence, the develop and the stamp.
+#
+#   eas build --profile development-simulator --platform ios --local
+#   xcrun simctl install booted SnapHunt.app
+#   EXPO_PUBLIC_E2E=1 npx expo start --dev-client
+#   maestro test .maestro/round.yaml
+#
+# See docs/TESTING.md for the manual matrix this flow does not cover.
+appId: com.snaphunt.game
+---
+# clearState makes the run start from a genuinely fresh install, which is the
+# only way to see the untimed first round.
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+      camera: allow
+
+# The first round is dealt automatically once the record has loaded.
+- assertVisible:
+    id: 'prompt-band'
+    timeout: 20000
+
+- assertVisible: "Today's submission"
+
+- takeScreenshot: artifacts/01-round
+
+# The shutter is reachable by what it does, not by where it sits.
+- tapOn: 'Submit a photograph'
+
+# The print develops while the judge looks.
+- assertVisible: 'The judge is looking.'
+- takeScreenshot: artifacts/02-developing
+
+# The ruling lands, stamped.
+- extendedWaitUntil:
+    visible:
+      id: 'ruling-stamp'
+    timeout: 15000
+- takeScreenshot: artifacts/03-verdict
+
+# The score updated: a tally exists and a total is on screen.
+- assertVisible:
+    id: 'tally-total'
+
+# And the loop continues.
+- tapOn: 'Next submission'
+- assertVisible:
+    id: 'prompt-band'
+    timeout: 10000
+
+# The office is reachable and can silence itself.
+- tapOn: 'Submit a photograph'
+- extendedWaitUntil:
+    visible:
+      id: 'ruling-stamp'
+    timeout: 15000
+- tapOn: 'The office'
+- assertVisible: 'The office'
+- tapOn: 'Silence the office'
+- assertVisible: 'Restore the noise'
+- takeScreenshot: artifacts/04-office

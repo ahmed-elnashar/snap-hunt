@@ -1,0 +1,48 @@
+name: Release
+
+# Builds on a version tag, never on a push. A native build takes tens of
+# minutes and costs money; running one because someone fixed a comment is how
+# a pipeline stops being trusted.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        required: true
+        default: preview
+        type: choice
+        options: [preview, production]
+
+jobs:
+  build:
+    name: EAS build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The same gate as CI. A tag must not ship something main would reject.
+      - name: Verify
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test -- --ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build
+        run: eas build --non-interactive --platform ios --profile ${{ inputs.profile || 'preview' }}

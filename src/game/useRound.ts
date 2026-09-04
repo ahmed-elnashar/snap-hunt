@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 import { type PreparedImage } from '@/capture/downscale';
+import { e2eVerdict, isE2E } from '@/capture/e2e';
 import { askTheJudge } from '@/judge/client';
 import { verdictAwardsPoint } from '@/judge/schema';
 import { getDeviceId } from '@/storage/deviceId';
@@ -162,12 +163,20 @@ export function useRound({
   /** Sends a photograph and records the outcome. Assumes state is `judging`. */
   const judge = useCallback(
     async (prompt: Prompt, image: PreparedImage, elapsedMs: number, timed: boolean) => {
-      const result = await askTheJudge({
-        promptId: prompt.id,
-        promptText: prompt.text,
-        imageBase64: image.base64,
-        deviceId: await getDeviceId(),
-      });
+      // The E2E harness stands in for the network so the flow can run on a
+      // simulator with no camera, no key and no signal. See src/capture/e2e.ts.
+      const result = isE2E()
+        ? ({
+            kind: 'verdict',
+            verdict: e2eVerdict(prompt.text),
+            repaired: false,
+          } as const)
+        : await askTheJudge({
+            promptId: prompt.id,
+            promptText: prompt.text,
+            imageBase64: image.base64,
+            deviceId: await getDeviceId(),
+          });
 
       if (result.kind === 'failed') {
         // The round is not spent and the streak is untouched: a failure here is

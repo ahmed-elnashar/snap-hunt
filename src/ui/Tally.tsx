@@ -32,6 +32,7 @@ export function Tally({ entries }: TallyProps) {
         {entries.map((entry) => (
           <View
             key={entry.label}
+            testID={`tally-${entry.label.replace(/\s+/g, '-')}`}
             style={styles.cell}
             accessible
             accessibilityLabel={entry.accessibilityLabel}
