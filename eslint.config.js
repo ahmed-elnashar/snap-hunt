@@ -51,8 +51,32 @@ module.exports = [
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
+    // The splash background, which Expo transpiles standalone and so cannot
+    // import a token from. Drift is caught by src/design/splash.test.ts, which
+    // fails if these stop matching the palette.
+    files: ['app.config.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
+  },
+  {
     // Tests assert on malformed shapes; scripts report to the console.
-    files: ['**/*.test.ts', '**/*.test.tsx', 'scripts/**'],
+    files: ['**/*.test.ts', '**/*.test.tsx', 'scripts/**', '__mocks__/**'],
     rules: { 'no-console': 'off', 'no-restricted-syntax': 'off' },
+  },
+  {
+    // Build scripts and the Jest mock run in Node, not on a device.
+    files: ['scripts/**', '__mocks__/**', 'jest.config.js', 'eslint.config.js'],
+    languageOptions: {
+      globals: {
+        Buffer: 'readonly',
+        process: 'readonly',
+        require: 'readonly',
+        module: 'writable',
+        __dirname: 'readonly',
+        console: 'readonly',
+        // The manual mocks are loaded by Jest and use its globals.
+        jest: 'readonly',
+      },
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
 ];

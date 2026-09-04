@@ -14,6 +14,9 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   scheme: 'snaphunt',
   userInterfaceStyle: 'automatic',
+  // 1024x1024, no alpha, no baked corner radius. Generated and inspected at
+  // 180/120/60 by scripts/make-icon.swift; the renders are in docs/icon/.
+  icon: './assets/icon.png',
   ios: {
     bundleIdentifier: 'com.snaphunt.game',
     supportsTablet: false,
@@ -28,6 +31,25 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    [
+      'expo-splash-screen',
+      {
+        // The stamp on the paper it is about to hit. The dark variant is the
+        // file copy — see DESIGN.md amendment A1.
+        image: './assets/splash-mark.png',
+        imageWidth: 160,
+        // These two hex values are the ONLY ones outside tokens.ts. Expo
+        // transpiles this file on its own and cannot resolve a .ts import at
+        // runtime, so the palette cannot be imported here. Drift is prevented
+        // instead by src/design/splash.test.ts, which fails the build if these
+        // stop matching palette.light.buff and palette.dark.buff.
+        backgroundColor: '#E8DCC4',
+        dark: {
+          image: './assets/splash-mark-dark.png',
+          backgroundColor: '#2B2722',
+        },
+      },
+    ],
     [
       'expo-camera',
       {

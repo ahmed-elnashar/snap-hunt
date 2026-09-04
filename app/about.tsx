@@ -5,12 +5,19 @@ import { useRouter } from 'expo-router';
 
 import { space, stroke, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
+import { setMuted } from '@/feedback/feedback';
 import {
   type Profile,
   FRESH_PROFILE,
   loadProfile,
   resetProfile,
 } from '@/storage/profile';
+import {
+  type Settings,
+  DEFAULT_SETTINGS,
+  loadSettings,
+  saveSettings,
+} from '@/storage/settings';
 import { PaperButton } from '@/ui/PaperButton';
 import { Tally } from '@/ui/Tally';
 
@@ -26,6 +33,7 @@ export default function About() {
   const styles = useMemo(() => makeStyles(colour), [colour]);
   const router = useRouter();
   const [profile, setProfile] = useState<Profile>(FRESH_PROFILE);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
@@ -33,9 +41,23 @@ export default function About() {
     void loadProfile().then((stored) => {
       if (alive) setProfile(stored);
     });
+    void loadSettings().then((stored) => {
+      if (alive) setSettings(stored);
+    });
     return () => {
       alive = false;
     };
+  }, []);
+
+  const toggleSound = useCallback(() => {
+    setSettings((current) => {
+      const next: Settings = { ...current, muted: !current.muted };
+      // The module is told first so the very next sound obeys, then the
+      // preference is written. A failed write costs the setting, not the round.
+      setMuted(next.muted);
+      void saveSettings(next);
+      return next;
+    });
   }, []);
 
   const reset = useCallback(() => {
@@ -98,6 +120,22 @@ export default function About() {
           A photograph of a screen will sometimes be caught and sometimes not. The office
           is aware of this and has decided not to pursue it.
         </Text>
+
+        <View style={styles.rule} />
+
+        <Text style={styles.body}>
+          The office makes two noises: the shutter, and the stamp. It respects the silent
+          switch, so a phone set to silent stays silent whatever this says.
+        </Text>
+        <PaperButton
+          label={settings.muted ? 'Restore the noise' : 'Silence the office'}
+          hint={
+            settings.muted
+              ? 'Turns the shutter and stamp sounds back on.'
+              : 'Turns off the shutter and stamp sounds.'
+          }
+          onPress={toggleSound}
+        />
 
         <View style={styles.rule} />
 

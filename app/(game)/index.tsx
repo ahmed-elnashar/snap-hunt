@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Link, Redirect } from 'expo-router';
 
 import { prepareForJudge, type PreparedImage } from '@/capture/downscale';
 import { permissionStage } from '@/capture/permission';
-import { space, stroke, type, type Palette } from '@/design/tokens';
+import { space, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
+import { play } from '@/feedback/feedback';
+import { hashString } from '@/game/prompts';
 import { useRound } from '@/game/useRound';
 import { copyForFailure } from '@/judge/copy';
 import { PaperButton } from '@/ui/PaperButton';
@@ -17,8 +19,10 @@ import { Ruling } from '@/ui/Ruling';
 import { Shutter } from '@/ui/Shutter';
 import { Tally } from '@/ui/Tally';
 
-function caseNumber(points: number, roundsPlayed: number): string {
-  return `NO. ${String((roundsPlayed * 37 + points) % 1_000_000).padStart(6, '0')}`;
+/** Stable across the develop and the ruling, because both inputs are. */
+function caseNumber(promptId: string, roundsPlayed: number): string {
+  const n = hashString(`${promptId}:${roundsPlayed}`) % 1_000_000;
+  return `NO. ${String(n).padStart(6, '0')}`;
 }
 
 export default function Round() {
@@ -48,6 +52,11 @@ export default function Round() {
   useEffect(() => {
     if (loaded && state.kind === 'idle') startRound();
   }, [loaded, state.kind, startRound]);
+
+  const submit = useCallback(() => {
+    play('shutter');
+    round.submit();
+  }, [round]);
 
   if (permissionStage(permission) !== 'granted') {
     return <Redirect href="/onboarding" />;
@@ -79,61 +88,52 @@ export default function Round() {
     );
   }
 
-  if (state.kind === 'verdict') {
+  /**
+   * Developing and ruled are one screen, not two. The print must not unmount
+   * and remount between them or the develop restarts under the stamp.
+   */
+  if (state.kind === 'captured' || state.kind === 'judging' || state.kind === 'verdict') {
+    const ruled = state.kind === 'verdict' ? state : null;
     return (
       <SafeAreaView style={styles.paper}>
         <ScrollView contentContainerStyle={styles.rulingSheet}>
           <Ruling
-            verdict={state.verdict}
+            verdict={ruled === null ? null : ruled.verdict}
             imageUri={state.uri}
-            caseNumber={caseNumber(state.points, profile.roundsPlayed)}
+            caseNumber={caseNumber(state.prompt.id, profile.roundsPlayed)}
           />
-          <Tally
-            entries={[
-              {
-                label: 'awarded',
-                value: String(state.points),
-                accessibilityLabel: `${state.points} points awarded this round`,
-              },
-              {
-                label: 'streak',
-                value: String(state.streakAfter),
-                accessibilityLabel:
-                  state.streakAfter === 0
-                    ? 'Streak broken'
-                    : `Streak of ${state.streakAfter}`,
-              },
-              {
-                label: 'total',
-                value: String(profile.totalPoints),
-                accessibilityLabel: `${profile.totalPoints} points in total`,
-              },
-            ]}
-          />
-          <PaperButton label="Next submission" onPress={round.startRound} />
-          <Link href="/about" style={styles.aside}>
-            <Text style={styles.asideText}>The office</Text>
-          </Link>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
 
-  if (state.kind === 'captured' || state.kind === 'judging') {
-    return (
-      <SafeAreaView style={styles.paper}>
-        <View style={styles.working}>
-          <Image
-            source={{ uri: state.uri }}
-            style={styles.developing}
-            resizeMode="cover"
-            accessibilityIgnoresInvertColors
-            accessibilityLabel="Your photograph, developing"
-          />
-          <Text style={styles.workingNote} accessibilityLiveRegion="polite">
-            The judge is looking.
-          </Text>
-        </View>
+          {ruled !== null && (
+            <>
+              <Tally
+                entries={[
+                  {
+                    label: 'awarded',
+                    value: String(ruled.points),
+                    accessibilityLabel: `${ruled.points} points awarded this round`,
+                  },
+                  {
+                    label: 'streak',
+                    value: String(ruled.streakAfter),
+                    accessibilityLabel:
+                      ruled.streakAfter === 0
+                        ? 'Streak broken'
+                        : `Streak of ${ruled.streakAfter}`,
+                  },
+                  {
+                    label: 'total',
+                    value: String(profile.totalPoints),
+                    accessibilityLabel: `${profile.totalPoints} points in total`,
+                  },
+                ]}
+              />
+              <PaperButton label="Next submission" onPress={round.startRound} />
+              <Link href="/about" style={styles.aside}>
+                <Text style={styles.asideText}>The office</Text>
+              </Link>
+            </>
+          )}
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -159,7 +159,7 @@ export default function Round() {
         <View
           style={[styles.shutterBand, { paddingBottom: insets.bottom + space.roomy }]}
         >
-          <Shutter onPress={round.submit} busy={round.submitting} />
+          <Shutter onPress={submit} busy={round.submitting} />
         </View>
       </SafeAreaView>
     </View>
@@ -190,21 +190,6 @@ const makeStyles = (colour: Palette) =>
       padding: space.roomy,
       gap: space.roomy,
     },
-    working: {
-      flex: 1,
-      justifyContent: 'center',
-      padding: space.roomy,
-      gap: space.roomy,
-    },
-    // Phase 4 brings this up to full contrast as the ruling arrives.
-    developing: {
-      width: '100%',
-      aspectRatio: 1,
-      opacity: 0.45,
-      borderWidth: stroke.rule,
-      borderColor: colour.bleed,
-    },
-    workingNote: { ...type.body, color: colour.bleed, textAlign: 'center' },
     aside: { alignSelf: 'flex-start' },
     asideText: { ...type.label, color: colour.bleed },
   });

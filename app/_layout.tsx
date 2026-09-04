@@ -7,6 +7,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 
 import { fontAssets } from '@/design/fonts';
+import { configureFeedback, setMuted } from '@/feedback/feedback';
+import { loadSettings } from '@/storage/settings';
 import { space, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
 
@@ -28,6 +30,13 @@ export default function RootLayout() {
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(colour.buff);
   }, [colour.buff]);
+
+  // The audio session is configured once, before anything can ask for a sound.
+  // No sound is played on open; this only makes the two that exist possible.
+  useEffect(() => {
+    void configureFeedback();
+    void loadSettings().then((settings) => setMuted(settings.muted));
+  }, []);
 
   if (!ready) return null;
 

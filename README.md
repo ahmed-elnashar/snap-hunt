@@ -8,9 +8,11 @@ stamps a ruling onto it.
 The game is one loop. The interest is in the time pressure and in the judge's
 personality, not in feature count.
 
-> **Status:** in build. Scaffold, design direction, camera and judging are done;
-> the clock, scoring and the stamp animation are not. See [PLAN.md](PLAN.md) for
-> the full spec and the phase plan.
+> **Status:** in build. The game is playable end to end — prompt, timer,
+> capture, ruling, score, streak — with the design pass applied. Release
+> pipeline and portfolio capture remain. See [PLAN.md](PLAN.md) for the phase
+> plan and [DESIGN.md](DESIGN.md) for the design, including everything that
+> changed once it was actually built.
 
 ## Running it
 
@@ -134,10 +136,43 @@ stock. That is the dark scheme — not an inversion, and deliberately not a
 near-black ground with the accent turned up. Both schemes name identical tokens,
 so no component branches on scheme.
 
+**The wait is the animation.** There is no spinner anywhere in the app. The
+captured photograph appears immediately as a veiled print and develops as the
+judge looks at it, then the stamp comes down. The develop is driven by the
+response arriving rather than by a fixed duration, because measured latency is a
+2.0s median and a fixed 1400ms develop would finish while the judge was still
+thinking — leaving a fully developed print sitting under nothing, which is worse
+than a spinner because it lies.
+
+**With reduce-motion enabled the verdict is a composed still**, not the same
+animation played instantly: the stamp is already landed, still rotated, still
+off-register, and the haptic still fires. Reduce-motion is a request about
+movement, not about physical feedback.
+
 **No hex literal exists outside `src/design/tokens.ts`.** An ESLint rule fails the
 build on one, and a unit test asserts that every ink in **both** schemes clears
 WCAG AA against the paper it sits on — so a palette edit that breaks contrast
 fails CI rather than shipping.
+
+## Accessibility
+
+Not a polish item, and not asserted without tests.
+
+- **Dynamic Type** throughout. Every screen scrolls and every height comes from
+  padding, so nothing clips at the largest setting. The countdown numeral is the
+  one exception — it is pinned, because a scaling numeral could force the prompt
+  band open over the preview.
+- **VoiceOver** labels on the shutter, the timer, the verdict and the score. The
+  ruling is announced through a live region when it lands, because it arrives
+  after the player has stopped looking at the screen.
+- **Accept and reject differ by more than colour.** Both stamps are inked in the
+  same violet and differ by the shape of the die and the word cut into it, so
+  the distinction survives greyscale, colour blindness and a screenshot.
+- **Every ink in both schemes clears WCAG AA** against its own paper. A unit
+  test computes the ratios and fails the build if a palette edit breaks one; the
+  tightest is `bleed` on the top copy at 4.72:1.
+- **The silent switch is respected.** `expo-audio` defaults to overriding it;
+  that default is explicitly turned off, and there is a test for it.
 
 ## Security
 
