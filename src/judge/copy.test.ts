@@ -1,4 +1,4 @@
-import { ALL_FAILURES, copyForFailure } from './copy';
+import { ALL_FAILURES, ALL_SCREENS, SCREEN_COPY, copyForFailure } from './copy';
 
 describe('failure copy', () => {
   it('covers every failure the client can report', () => {
@@ -84,5 +84,69 @@ describe('failure copy', () => {
       const copy = copyForFailure('ratelimit', 1800);
       expect(`${copy.ruling} ${copy.note}`).not.toMatch(/429|5\d\d|HTTP/);
     });
+  });
+});
+
+/**
+ * The same rules over the screens that are not rulings.
+ *
+ * These strings used to sit inline in the route files, out of reach of this
+ * suite — so the copy most likely to be written in a hurry, on an error path,
+ * was the copy nothing checked.
+ */
+describe('screen copy', () => {
+  it('covers every screen', () => {
+    expect(ALL_SCREENS.length).toBeGreaterThan(0);
+    for (const screen of ALL_SCREENS) {
+      expect(SCREEN_COPY[screen].ruling.length).toBeGreaterThan(0);
+      expect(SCREEN_COPY[screen].note.length).toBeGreaterThan(0);
+      expect(SCREEN_COPY[screen].action.length).toBeGreaterThan(0);
+    }
+  });
+
+  describe.each(ALL_SCREENS)('%s', (screen) => {
+    const copy = SCREEN_COPY[screen];
+    const strings = [copy.ruling, copy.note, copy.action];
+
+    it('uses no exclamation marks', () => {
+      for (const s of strings) expect(s).not.toMatch(/!/);
+    });
+
+    it('uses no emoji', () => {
+      for (const s of strings) expect(s).not.toMatch(/\p{Extended_Pictographic}/u);
+    });
+
+    it('uses no praise words', () => {
+      for (const s of strings) {
+        expect(s.toLowerCase()).not.toMatch(
+          /\b(great|nice|well done|good job|awesome|perfect|excellent|oops|sorry)\b/,
+        );
+      }
+    });
+
+    it('never says the generic thing', () => {
+      for (const s of strings) {
+        expect(s.toLowerCase()).not.toMatch(
+          /\b(network error|something went wrong|an error occurred|try again later|failed to)\b/,
+        );
+      }
+    });
+
+    it('appends no arrow to the action', () => {
+      expect(copy.action).not.toMatch(/[\u2192\u203a\u00bb>]/);
+    });
+
+    it('keeps the ruling to one or two sentences', () => {
+      const sentences = copy.ruling.split(/(?<=[.?])\s+/).filter(Boolean);
+      expect(sentences.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  it('never blames the player for a failure the office owns', () => {
+    for (const screen of ['cameraAskFailed', 'cameraStalled', 'recordUnreadable'] as const) {
+      expect(SCREEN_COPY[screen].note.toLowerCase()).toMatch(
+        /nothing (is|has been) (lost|decided)|nothing is lost/,
+      );
+    }
   });
 });

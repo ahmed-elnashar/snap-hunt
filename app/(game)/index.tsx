@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -6,13 +6,13 @@ import { Link, Redirect } from 'expo-router';
 
 import { prepareForJudge, type PreparedImage } from '@/capture/downscale';
 import { e2ePhoto, isE2E } from '@/capture/e2e';
-import { roundGate } from '@/capture/permission';
+import { PERMISSION_STALL_MS, roundGate } from '@/capture/permission';
 import { space, type, type Palette } from '@/design/tokens';
 import { useColours } from '@/design/useColours';
 import { play } from '@/feedback/feedback';
 import { hashString } from '@/game/prompts';
 import { useRound } from '@/game/useRound';
-import { copyForFailure } from '@/judge/copy';
+import { SCREEN_COPY, copyForFailure } from '@/judge/copy';
 import { PaperButton } from '@/ui/PaperButton';
 import { PaperScreen } from '@/ui/PaperScreen';
 import { PromptBand } from '@/ui/PromptBand';
@@ -30,7 +30,7 @@ export default function Round() {
   const colour = useColours();
   const styles = useMemo(() => makeStyles(colour), [colour]);
   const insets = useSafeAreaInsets();
-  const [permission] = useCameraPermissions();
+  const [permission, , refreshPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
 
   const takePhoto = useCallback(async (): Promise<PreparedImage | null> => {
@@ -47,25 +47,73 @@ export default function Round() {
   }, []);
 
   const round = useRound({ takePhoto });
-  const { state, profile, loaded, startRound } = round;
+  const { state, profile, loaded, loadFailed, startRound } = round;
+
+  const gate = roundGate(permission, isE2E());
 
   // Deal the first round as soon as the record is known, because the untimed
-  // round zero depends on whether this player has played before.
+  // round zero depends on whether this player has played before — but not
+  // before the camera is available. The clock is real from the moment a round
+  // is dealt, and dealing one behind the blank sheet spends the player's
+  // twenty seconds on a screen they cannot see.
   useEffect(() => {
-    if (loaded && state.kind === 'idle') startRound();
-  }, [loaded, state.kind, startRound]);
+    if (gate === 'play' && loaded && state.kind === 'idle') startRound();
+  }, [gate, loaded, state.kind, startRound]);
+
+  const [permissionStalled, setPermissionStalled] = useState(false);
+  useEffect(() => {
+    if (gate !== 'wait') return;
+    const id = setTimeout(() => setPermissionStalled(true), PERMISSION_STALL_MS);
+    return () => clearTimeout(id);
+  }, [gate]);
+
+  const retryPermission = useCallback(() => {
+    setPermissionStalled(false);
+    void refreshPermission().catch(() => setPermissionStalled(true));
+  }, [refreshPermission]);
 
   const submit = useCallback(() => {
     play('shutter');
     round.submit();
   }, [round]);
 
-  const gate = roundGate(permission, isE2E());
   if (gate === 'onboard') return <Redirect href="/onboarding" />;
 
-  // 'wait' is the permission hook's first render, before the OS has answered.
-  // It shares the blank sheet with the profile load: both are "we do not know
-  // yet", and both resolve without the player doing anything.
+  // The blank sheet is only honest while "we do not know yet" is still true.
+  // Both ways of not knowing are bounded, because an unbounded one is not a
+  // slow screen — it is an empty screen with nothing on it and no way off.
+  if (gate === 'wait' && permissionStalled) {
+    return (
+      <PaperScreen
+        announce
+        ruling={SCREEN_COPY.cameraStalled.ruling}
+        note={SCREEN_COPY.cameraStalled.note}
+      >
+        <PaperButton
+          label={SCREEN_COPY.cameraStalled.action}
+          hint="Re-reads the camera permission from iOS."
+          onPress={retryPermission}
+        />
+      </PaperScreen>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <PaperScreen
+        announce
+        ruling={SCREEN_COPY.recordUnreadable.ruling}
+        note={SCREEN_COPY.recordUnreadable.note}
+      >
+        <PaperButton
+          label={SCREEN_COPY.recordUnreadable.action}
+          hint="Reads your saved record again."
+          onPress={round.reloadProfile}
+        />
+      </PaperScreen>
+    );
+  }
+
   if (gate === 'wait' || !loaded || state.kind === 'idle') {
     return <View style={styles.paper} />;
   }
@@ -74,10 +122,10 @@ export default function Round() {
     return (
       <PaperScreen
         announce
-        ruling="Time. The submission was not made."
-        note="No ruling, and nothing against you. Your streak is intact."
+        ruling={SCREEN_COPY.timeExpired.ruling}
+        note={SCREEN_COPY.timeExpired.note}
       >
-        <PaperButton label="Take the next one" onPress={round.startRound} />
+        <PaperButton label={SCREEN_COPY.timeExpired.action} onPress={round.startRound} />
       </PaperScreen>
     );
   }

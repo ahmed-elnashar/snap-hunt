@@ -4,6 +4,7 @@ import { Redirect } from 'expo-router';
 import { useCameraPermissions } from 'expo-camera';
 
 import { permissionStage } from '@/capture/permission';
+import { SCREEN_COPY } from '@/judge/copy';
 import { PaperButton } from '@/ui/PaperButton';
 import { PaperScreen } from '@/ui/PaperScreen';
 
@@ -36,11 +37,11 @@ export default function Onboarding() {
     return (
       <PaperScreen
         announce
-        ruling="The camera was asked for and the question went unanswered."
-        note="Nothing has been decided and nothing is held against you. Ask again; the office keeps the file open."
+        ruling={SCREEN_COPY.cameraAskFailed.ruling}
+        note={SCREEN_COPY.cameraAskFailed.note}
       >
         <PaperButton
-          label="Ask again"
+          label={SCREEN_COPY.cameraAskFailed.action}
           hint="Requests camera access from iOS a second time."
           onPress={ask}
         />
@@ -56,11 +57,11 @@ export default function Onboarding() {
     return (
       <PaperScreen
         announce
-        ruling="The camera has been withheld."
-        note="Nothing can be submitted until the office is permitted to look. Settings will let you reverse that; the round will be waiting."
+        ruling={SCREEN_COPY.cameraBlocked.ruling}
+        note={SCREEN_COPY.cameraBlocked.note}
       >
         <PaperButton
-          label="Open Settings"
+          label={SCREEN_COPY.cameraBlocked.action}
           hint="Leaves Snap Hunt and opens its entry in the Settings app."
           onPress={() => {
             void Linking.openSettings();
@@ -72,11 +73,11 @@ export default function Onboarding() {
 
   return (
     <PaperScreen
-      ruling="The judge cannot rule on a photograph it has not been shown."
-      note="The camera is used for one thing: the picture you hand in. It is sent to the judge, ruled on, and discarded. It is never stored, and no one else sees it."
+      ruling={SCREEN_COPY.cameraPriming.ruling}
+      note={SCREEN_COPY.cameraPriming.note}
     >
       <PaperButton
-        label="Hand over the camera"
+        label={SCREEN_COPY.cameraPriming.action}
         hint="Asks iOS for camera access."
         onPress={ask}
       />

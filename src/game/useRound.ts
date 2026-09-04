@@ -5,6 +5,7 @@ import { e2eDelay, e2eVerdict, isE2E } from '@/capture/e2e';
 import { askTheJudge } from '@/judge/client';
 import { verdictAwardsPoint } from '@/judge/schema';
 import { getDeviceId } from '@/storage/deviceId';
+import { withTimeout } from '@/util/withTimeout';
 import {
   type Profile,
   FRESH_PROFILE,
@@ -40,6 +41,12 @@ import { ROUND_MS, scoreRound } from './scoring';
  */
 const TICK_MS = 200;
 
+/**
+ * Bound on the one storage read that gates the whole screen. Generous: a real
+ * AsyncStorage read is milliseconds, so anything near this is broken, not slow.
+ */
+const PROFILE_READ_TIMEOUT_MS = 4_000;
+
 export type UseRoundOptions = {
   /** Owned by the screen, because the camera ref lives there. */
   readonly takePhoto: () => Promise<PreparedImage | null>;
@@ -51,6 +58,8 @@ export type UseRound = {
   readonly state: RoundState;
   readonly profile: Profile;
   readonly loaded: boolean;
+  /** The record could not be read. The screen must say so, not sit blank. */
+  readonly loadFailed: boolean;
   /** Milliseconds left, or null when untimed or not running. */
   readonly remaining: number | null;
   readonly isDaily: boolean;
@@ -60,6 +69,8 @@ export type UseRound = {
   retry: () => void;
   dismiss: () => void;
   replaceProfile: (profile: Profile) => void;
+  /** Retries a failed record read. */
+  reloadProfile: () => void;
 };
 
 export function useRound({
@@ -70,6 +81,8 @@ export function useRound({
   const [state, dispatch] = useReducer(roundReducer, initialRoundState);
   const [profile, setProfileState] = useState<Profile>(FRESH_PROFILE);
   const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [tick, setTick] = useState(() => now());
   const [isDaily, setIsDaily] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -111,15 +124,27 @@ export function useRound({
 
   useEffect(() => {
     let alive = true;
-    void loadProfile().then((stored) => {
-      if (!alive) return;
-      setProfileState(stored);
-      setLoaded(true);
-    });
+    // Bounded, because the alternative is not a slow screen but a permanent
+    // one: the round screen shows a blank sheet until `loaded`, so a storage
+    // read that never settles is a dead end with nothing on it. loadProfile
+    // already degrades a corrupt value to a fresh profile; this covers the
+    // case where it never answers at all.
+    void withTimeout(loadProfile(), PROFILE_READ_TIMEOUT_MS, 'Reading the record')
+      .then((stored) => {
+        if (!alive) return;
+        setProfileState(stored);
+        setLoaded(true);
+      })
+      .catch(() => {
+        // Deliberately not a fresh profile: a slow read is not an absent one,
+        // and quietly starting from zero would overwrite a real record on the
+        // next save. The player is told, and can try again.
+        if (alive) setLoadFailed(true);
+      });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const persist = useCallback((next: Profile) => {
     setProfileState(next);
@@ -138,6 +163,39 @@ export function useRound({
     if (capturing.current) return;
     if (hasExpired(state, tick)) dispatch({ type: 'timeExpired' });
   }, [state, tick]);
+
+  /**
+   * The record follows the machine, not the network.
+   *
+   * `verdictReturned` is dropped by the reducer when the round is already over
+   * — a ruling on a dead round must not resurrect it *or score into it*. When
+   * the write lived next to the dispatch, only the first half of that held:
+   * the reducer refused the verdict and the points landed in storage anyway.
+   * Reacting to the state actually reaching `verdict` makes them one decision
+   * that cannot disagree.
+   */
+  const persistedFor = useRef<RoundState | null>(null);
+  useEffect(() => {
+    if (state.kind !== 'verdict') return;
+    // Identity, not equality: the reducer returns a new object per transition
+    // and the same one when it ignores an action, so this writes exactly once.
+    if (persistedFor.current === state) return;
+    persistedFor.current = state;
+
+    const played = applyRound(profileRef.current, {
+      points: state.points,
+      streakAfter: state.streakAfter,
+      awarded: verdictAwardsPoint(state.verdict),
+    });
+    persist(dailyRef.current ? markDailyPlayed(played, dayKey(new Date(now()))) : played);
+  }, [state, persist, now]);
+
+  const reloadProfile = useCallback(() => {
+    // Cleared here rather than in the effect: React 19 correctly forbids a
+    // synchronous setState inside one, and a retry is an event either way.
+    setLoadFailed(false);
+    setLoadAttempt((n) => n + 1);
+  }, []);
 
   const startRound = useCallback(() => {
     const at = now();
@@ -205,17 +263,9 @@ export function useRound({
         points: score.points,
         streakAfter: score.streakAfter,
       });
-
-      const played = applyRound(current, {
-        points: score.points,
-        streakAfter: score.streakAfter,
-        awarded,
-      });
-      persist(
-        dailyRef.current ? markDailyPlayed(played, dayKey(new Date(now()))) : played,
-      );
+      // The record is written by the effect below, not here. See it for why.
     },
-    [now, persist],
+    [],
   );
 
   const submit = useCallback(() => {
@@ -274,6 +324,7 @@ export function useRound({
     state,
     profile,
     loaded,
+    loadFailed,
     remaining: remainingMs(state, tick),
     isDaily,
     submitting,
@@ -282,5 +333,6 @@ export function useRound({
     retry,
     dismiss,
     replaceProfile: persist,
+    reloadProfile,
   };
 }

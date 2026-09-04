@@ -35,6 +35,16 @@ export function needsSettingsTrip(permission: PermissionLike | null): boolean {
   return permissionStage(permission) === 'blocked';
 }
 
+/**
+ * How long the round screen sits on an unanswered permission before it stops
+ * being a blank sheet and says something.
+ *
+ * expo's usePermission calls its getter with no catch, so a rejected or
+ * never-settling query leaves the status at null for good. Generous enough
+ * that nobody healthy ever sees it.
+ */
+export const PERMISSION_STALL_MS = 5_000;
+
 export type RoundGate =
   /** The OS has not answered this component yet. Hold the paper, do not move. */
   | 'wait'
