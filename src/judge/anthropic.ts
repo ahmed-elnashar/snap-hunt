@@ -86,6 +86,8 @@ export type RuleOnPhotographInput = {
   /** Injected so the pipeline can be tested without a network. */
   readonly fetchImpl?: typeof fetch;
   readonly now?: () => number;
+  /** Overridable so the budget can be exercised without waiting for it. */
+  readonly budgetMs?: number;
 };
 
 type ContentBlock = { readonly type?: string; readonly text?: string };
@@ -106,8 +108,9 @@ export async function ruleOnPhotograph({
   imageBase64,
   fetchImpl = fetch,
   now = Date.now,
+  budgetMs = SERVER_BUDGET_MS,
 }: RuleOnPhotographInput): Promise<JudgeOutcome> {
-  const deadline = now() + SERVER_BUDGET_MS;
+  const deadline = now() + budgetMs;
 
   const imageBlock = {
     type: 'image',

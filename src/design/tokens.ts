@@ -122,7 +122,15 @@ export const stroke = {
  */
 export const motion = {
   still: 0,
-  /** The print coming up to full contrast. Covers the judge's round trip. */
+  /**
+   * Floor for the print coming up to full contrast, NOT a fixed duration.
+   *
+   * Measured judge latency is a median of 2.0s and a p90 of 2.9s, so a fixed
+   * 1400ms develop would finish while the judge is still thinking and leave a
+   * developed print sitting under nothing. The animation is driven by the
+   * response arriving; this is only the minimum, so a fast ruling still reads
+   * as development rather than a flicker.
+   */
   develop: 1400,
   /** The stamp travelling down onto the print. Deliberately abrupt. */
   strike: 180,

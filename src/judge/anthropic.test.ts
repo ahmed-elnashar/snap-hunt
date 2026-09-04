@@ -189,6 +189,66 @@ describe('ruleOnPhotograph', () => {
     expect(outcome).toMatchObject({ ok: true, verdict: ILLEGIBLE_RULING });
   });
 
+  /**
+   * A live probe saw an upstream call take 10.5 seconds — past the server's
+   * own budget and past the device's six-second patience. These assert the
+   * budget is actually enforced by an abort rather than merely intended.
+   */
+  describe('the budget is enforced, not just declared', () => {
+    it('aborts a first call that outruns the budget', async () => {
+      let aborted = false;
+      const impl = (async (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            aborted = true;
+            reject(new Error('aborted'));
+          });
+        })) as unknown as typeof fetch;
+
+      const outcome = await ruleOnPhotograph({ ...base, fetchImpl: impl, budgetMs: 40 });
+      expect(aborted).toBe(true);
+      expect(outcome).toEqual({ ok: false, failure: 'upstream' });
+    });
+
+    it('aborts a slow repair too, rather than only the first call', async () => {
+      let calls = 0;
+      let abortsSeen = 0;
+      const impl = (async (_url: string, init?: RequestInit) => {
+        calls += 1;
+        if (calls === 1) return reply('unreadable prose');
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            abortsSeen += 1;
+            reject(new Error('aborted'));
+          });
+        });
+      }) as unknown as typeof fetch;
+
+      // Must exceed REPAIR_MIN_BUDGET_MS, or the repair is correctly skipped
+      // rather than attempted and aborted — which is a different behaviour.
+      const outcome = await ruleOnPhotograph({
+        ...base,
+        fetchImpl: impl,
+        budgetMs: 1_700,
+      });
+      expect(calls).toBe(2);
+      expect(abortsSeen).toBe(1);
+      expect(outcome).toEqual({ ok: false, failure: 'upstream' });
+    });
+
+    it('never waits longer than the budget, even on a hung upstream', async () => {
+      const impl = (async (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        })) as unknown as typeof fetch;
+
+      const started = Date.now();
+      await ruleOnPhotograph({ ...base, fetchImpl: impl, budgetMs: 60 });
+      // Generous upper bound: the point is that it returns, not that it is exact.
+      expect(Date.now() - started).toBeLessThan(1_500);
+    });
+  });
+
   it('digs a ruling out of prose without needing a repair', async () => {
     const { impl, calls } = fakeFetch([() => reply(`Very well. ${CLEAN} That is all.`)]);
     const outcome = await ruleOnPhotograph({ ...base, fetchImpl: impl });

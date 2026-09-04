@@ -110,10 +110,17 @@ both roles are literal readouts, a count and a serial. It never labels anything.
 
 The verdict reveal, in three beats:
 
-1. **Develop** (~1400 ms, but really: however long the judge takes). The captured
-   frame appears immediately as a flat, washed-out print and comes up to full
-   contrast. This is not a loading state dressed up — it *is* the wait. The app
-   contains no spinner.
+1. **Develop** — however long the judge takes, with a 1400 ms floor. The
+   captured frame appears immediately as a flat, washed-out print and comes up
+   to full contrast. This is not a loading state dressed up — it *is* the wait.
+   The app contains no spinner.
+
+   Measured against the live model: **median 2.0 s, p90 2.9 s** over eight warm
+   requests at 1024 px. The develop is therefore driven by the response
+   arriving, not by a fixed duration — a fixed 1400 ms would finish while the
+   judge is still thinking and leave a fully developed print sitting under
+   nothing, which is worse than a spinner because it lies. The floor exists so
+   an unusually fast ruling still reads as development rather than a flicker.
 2. **Strike** (180 ms). The stamp comes down. Deliberately abrupt — faster than
    feels comfortable. Haptic impact on contact.
 3. **Rest.** It stays where it landed: rotated −7°, off-register, ink broken.
