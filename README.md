@@ -274,6 +274,24 @@ of the process — the safe direction to be wrong in, and better than not buildi
 It is applied automatically by `patch-package` on `npm install`, and should be
 deleted as soon as a fixed `expo-modules-jsi` ships.
 
+**Three dependencies are pinned to exact versions because of it.** `expo`,
+`expo-router` and `expo-image-manipulator` carry no `~`, and are listed under
+`expo.install.exclude` so `expo-doctor` knows the hold is deliberate rather
+than neglect.
+
+The reason is specific. A `~57.0.19` range permits `expo@57.0.20`, which pulls
+`expo-modules-core@57.0.16` and with it `expo-modules-jsi@57.0.8` — and the
+patch is named for `57.0.7`, so it would silently stop being applied and the
+native build would break again. Checking the published `57.0.8` tarball, the
+annotations are byte-for-byte unchanged, so there is nothing to gain by moving.
+Only the lockfile was holding this before; now the manifest says so too.
+
+When upstream fixes it: delete the patch, drop the three `exclude` entries, and
+restore the ranges. An `overrides` entry pinning `expo-modules-jsi` alone would
+also free the other three to float, but it forces a version mismatch across a
+native boundary and should not be done without an actual `npx expo run:ios`
+to prove it.
+
 ## Accessibility
 
 Not a polish item, and not asserted without tests.
