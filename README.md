@@ -194,8 +194,8 @@ fails CI rather than shipping.
 | **The round.** The prompt sits on opaque paper laid across the preview, so type never competes with the live image. The teal rule under it is the clock, retracting. | **The develop.** The captured photograph emerges from the paper it is printed on while the judge looks at it. There is no spinner anywhere in this app. |
 | ![Admitted](docs/screens/04-admitted.png) | ![Not admitted](docs/screens/03-not-admitted.png) |
 | **Admitted.** A ring die. | **Not admitted.** A bar die, in *the same violet ink*. Accept and reject differ by the shape of the mark and the word cut into it, never by colour. |
-| ![The office](docs/screens/05-office.png) | ![The file copy](docs/screens/06-file-copy-dark.png) |
-| **The office.** The record, what the judge is, and what it cannot do — stated to the player, not just in this file. | **The file copy.** Dark mode is the office's duplicate on darker stock, not an inversion. |
+| ![The file copy](docs/screens/06-file-copy-dark.png) | |
+| **The file copy.** Dark mode is the office's duplicate on darker stock, not an inversion — same layout, same stamp, different sheet. | |
 
 ## Building natively
 
