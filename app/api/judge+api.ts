@@ -13,12 +13,29 @@ import { createRateLimiter } from '@/judge/rateLimit';
  */
 
 /**
- * Per device, per hour. Generous for playing, small enough that a runaway
- * client cannot spend the budget. Module scope, so it survives between requests
- * in the same instance — and resets when that instance recycles. A courtesy
- * limit, not a billing control; the README says so rather than implying more.
+ * Two ceilings, per hour.
+ *
+ * `limit` is per device: generous for playing, small enough that a runaway
+ * client cannot spend the budget. On its own it bounds nothing, because the
+ * device id arrives in a header the client controls — anyone can mint a fresh
+ * one per request and never engage it.
+ *
+ * `globalLimit` is the one that actually bounds the bill. 600/hour is ten
+ * honest players at their full allowance, so real play will not reach it; a
+ * public endpoint on a public repo will, if someone decides to hold the button
+ * down. When it is reached everyone gets the judge's lunch break rather than
+ * an unbounded invoice.
+ *
+ * Module scope, so both survive between requests in the same instance — and
+ * reset when it recycles. Per-instance, so this is a brake, not a billing
+ * control. The account spend limit is the real backstop; the README says so
+ * rather than implying more.
  */
-const limiter = createRateLimiter({ limit: 60, windowMs: 3_600_000 });
+const limiter = createRateLimiter({
+  limit: 60,
+  globalLimit: 600,
+  windowMs: 3_600_000,
+});
 
 const handle = createJudgeHandler({
   apiKey: process.env.ANTHROPIC_API_KEY,

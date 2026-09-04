@@ -18,6 +18,19 @@ export type RateLimiterOptions = {
   readonly limit: number;
   readonly windowMs: number;
   /**
+   * Total requests allowed across every device in a window.
+   *
+   * The per-device cap alone does not bound spend: the device id arrives in a
+   * header the client controls, so anyone can mint a fresh one per request and
+   * the per-device limit never engages. This is the ceiling that actually
+   * bounds the bill. It is deliberately far above real play — a player using
+   * their whole hourly allowance is a rounding error against it — so reaching
+   * it means something is wrong rather than that someone is enjoying the game.
+   *
+   * Omit for no global ceiling.
+   */
+  readonly globalLimit?: number;
+  /**
    * Most devices this instance will track. Beyond it, the least recently seen
    * are dropped, so a stream of invented device ids cannot grow the map without
    * bound. Dropping a key is safe: it only forgives requests.
@@ -38,18 +51,29 @@ export type RateLimiter = {
   check(key: string, now: number): RateLimitDecision;
   /** Devices currently tracked. For tests and diagnostics. */
   size(): number;
+  /** Hits counted against the global ceiling in the window. For tests. */
+  globalSize(now: number): number;
 };
 
 export function createRateLimiter({
   limit,
   windowMs,
   maxKeys = 10_000,
+  globalLimit,
 }: RateLimiterOptions): RateLimiter {
   if (limit < 1) throw new Error(`limit must be at least 1: got ${limit}`);
   if (windowMs < 1) throw new Error(`windowMs must be at least 1: got ${windowMs}`);
+  if (globalLimit !== undefined && globalLimit < limit) {
+    throw new Error(
+      `globalLimit must be at least limit (${limit}): got ${globalLimit}. ` +
+        'A ceiling below the per-device cap would refuse a single honest player.',
+    );
+  }
 
   // Insertion-ordered, so the first key is the least recently touched.
   const hits = new Map<string, number[]>();
+  /** Every hit in the window, regardless of device. Oldest first. */
+  let globalHits: number[] = [];
 
   function evictIfCrowded(): void {
     while (hits.size > maxKeys) {
@@ -71,8 +95,16 @@ export function createRateLimiter({
     return { allowed: false, retryAfterMs: Math.max(0, oldest + windowMs - now) };
   }
 
+  /** True once the whole service has spent its window. */
+  function globalIsFull(now: number): boolean {
+    if (globalLimit === undefined) return false;
+    globalHits = globalHits.filter((at) => at > now - windowMs);
+    return globalHits.length >= globalLimit;
+  }
+
   return {
     peek(key, now) {
+      if (globalIsFull(now)) return refused(globalHits, now);
       const recent = recentFor(key, now);
       return recent.length >= limit
         ? refused(recent, now)
@@ -80,6 +112,10 @@ export function createRateLimiter({
     },
 
     check(key, now) {
+      // Checked first: once the service ceiling is reached nobody is admitted,
+      // and a refused request must not consume the ceiling it just hit.
+      if (globalIsFull(now)) return refused(globalHits, now);
+
       const recent = recentFor(key, now);
 
       if (recent.length >= limit) {
@@ -96,12 +132,18 @@ export function createRateLimiter({
       hits.delete(key);
       hits.set(key, recent);
       evictIfCrowded();
+      if (globalLimit !== undefined) globalHits.push(now);
 
       return { allowed: true, remaining: limit - recent.length };
     },
 
     size() {
       return hits.size;
+    },
+
+    globalSize(now) {
+      globalHits = globalHits.filter((at) => at > now - windowMs);
+      return globalHits.length;
     },
   };
 }

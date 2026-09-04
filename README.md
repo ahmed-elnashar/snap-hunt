@@ -20,6 +20,11 @@ was one, and the ones I got wrong are written down too.
   <img src="docs/media/round.gif" alt="A round: prompt, shutter, the print developing, the stamp landing" width="320">
 </p>
 
+**[See the live type scale and palette](https://snap-hunt.expo.app/specimen)**
+The specimen sheet is served from the same deployment: both Martian Mono roles,
+the full palette, and every contrast ratio measured against the sheet it sits
+on. It needs no camera and costs nothing to open.
+
 ## At a glance
 
 | | |
@@ -277,6 +282,11 @@ Not a polish item, and not asserted without tests.
   and the shutter-beats-the-clock race cannot be answered by a simulator. The
   Maestro flow is written but has never been executed.
 - **No offline play.** Judging needs a network round trip.
+- **The web build is not the target.** `web.output: 'server'` exists so the API
+  route can be hosted, and the app happens to render there — the screens, the
+  fonts and the specimen sheet are all correct in a browser. But the round is
+  not playable on the web: the shutter does not advance, and the capture path
+  has never been built for it. iOS is the platform; the web output is a server.
 - **Not on the App Store.** Distribution is a development build and TestFlight,
   and the TestFlight build waits on Apple Developer enrollment.
 - **One patched dependency**, and three versions pinned because of it. See

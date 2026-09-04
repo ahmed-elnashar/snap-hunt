@@ -113,3 +113,59 @@ describe('peek', () => {
     expect(limiter.peek('device-a', 1_001).allowed).toBe(true);
   });
 });
+
+describe('the global ceiling', () => {
+  it('bounds spend even when every request invents a new device id', () => {
+    // The per-device cap alone bounds nothing: the id is a client-supplied
+    // header, so a fresh one per request never engages it. This is the case
+    // the ceiling exists for.
+    const limiter = createRateLimiter({ limit: 1, globalLimit: 5, windowMs: 1_000 });
+    const allowed = Array.from({ length: 50 }, (_, i) =>
+      limiter.check(`invented-device-${i}`, 0),
+    ).filter((d) => d.allowed).length;
+    expect(allowed).toBe(5);
+  });
+
+  it('does not consume the ceiling with requests it refused', () => {
+    const limiter = createRateLimiter({ limit: 1, globalLimit: 2, windowMs: 1_000 });
+    limiter.check('a', 0);
+    limiter.check('b', 0);
+    for (let i = 0; i < 20; i += 1) limiter.check(`c-${i}`, 0);
+    expect(limiter.globalSize(0)).toBe(2);
+  });
+
+  it('lets everyone back in once the window rolls', () => {
+    const limiter = createRateLimiter({ limit: 1, globalLimit: 1, windowMs: 1_000 });
+    expect(limiter.check('a', 0).allowed).toBe(true);
+    expect(limiter.check('b', 500).allowed).toBe(false);
+    expect(limiter.check('b', 1_001).allowed).toBe(true);
+  });
+
+  it('reports how long the whole service is shut for', () => {
+    const limiter = createRateLimiter({ limit: 1, globalLimit: 1, windowMs: 1_000 });
+    limiter.check('a', 0);
+    const refusal = limiter.check('b', 250);
+    expect(refusal.allowed === false && refusal.retryAfterMs).toBe(750);
+  });
+
+  it('peek reports the ceiling without consuming it', () => {
+    const limiter = createRateLimiter({ limit: 1, globalLimit: 1, windowMs: 1_000 });
+    limiter.check('a', 0);
+    expect(limiter.peek('b', 0).allowed).toBe(false);
+    expect(limiter.globalSize(0)).toBe(1);
+  });
+
+  it('is optional, so a limiter without one is unchanged', () => {
+    const limiter = createRateLimiter({ limit: 2, windowMs: 1_000 });
+    expect(limiter.check('a', 0).allowed).toBe(true);
+    expect(limiter.check('b', 0).allowed).toBe(true);
+    expect(limiter.check('c', 0).allowed).toBe(true);
+    expect(limiter.globalSize(0)).toBe(0);
+  });
+
+  it('refuses a ceiling below the per-device cap, which would refuse one player', () => {
+    expect(() => createRateLimiter({ limit: 60, globalLimit: 10, windowMs: 1_000 })).toThrow(
+      /globalLimit must be at least limit/,
+    );
+  });
+});
